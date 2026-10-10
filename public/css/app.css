@@ -350,6 +350,34 @@ h2 {
 	font-size: 0.9375rem;
 }
 
+/* Notice and about */
+
+.notice {
+	margin: 0 0 20px;
+	padding: 12px 14px;
+	border-radius: 12px;
+	background: var(--accent-soft);
+	font-size: 0.9375rem;
+	text-align: left;
+}
+
+.about {
+	margin-top: 24px;
+	font-size: 0.9375rem;
+	color: var(--muted);
+	text-align: left;
+}
+
+.about h2 {
+	margin: 0 0 6px;
+	font-size: 1rem;
+	color: var(--text);
+}
+
+.about p {
+	margin: 0;
+}
+
 /* Help disclosure */
 
 .help {

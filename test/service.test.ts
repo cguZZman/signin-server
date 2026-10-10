@@ -17,7 +17,10 @@ afterEach(() => {
 
 describe('pages', () => {
 	it('render', async () => {
-		expect(await (await server.get('/')).text()).toContain('Connect Kodi to your cloud drive');
+		const index = await (await server.get('/')).text();
+		expect(index).toContain('Connect Kodi to your cloud drive');
+		expect(index, 'warns against codes from others (device-code phishing)').toContain('Only enter a code that your own Kodi device shows');
+		expect(index).toContain('never asks for or sees your password');
 		const success = await server.get('/auth-success');
 		expect(success.status).toBe(200);
 		const body = await success.text();
