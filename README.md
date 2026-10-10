@@ -36,3 +36,11 @@ npm run dev       # local server on http://localhost:8787 (needs .dev.vars, see 
 ```
 
 The tests run the whole sign-in for both providers (code, redirect to the provider, callback, token pickup, refresh, legacy app fallback) against a mock token endpoint, plus the pages, error messages, rate limits, redirects and security headers. No real Google or Microsoft credentials are needed.
+
+## License
+
+Copyright (C) 2017-2026 Carlos Guzman (cguZZman).
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. See [LICENSE](LICENSE).
+
+If you run a modified version of this service for others, the license requires you to offer them its source code.

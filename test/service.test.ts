@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clientAddress, sourceId } from '../src/app';
+import { ipv6Groups, network } from '../src/state';
 import { MockTokenEndpoint, Server, testEnv } from './helpers';
 
 let server: Server;
@@ -89,7 +90,21 @@ describe('addresses', () => {
 
 	it('compute the source id like the add-on', () => {
 		expect(sourceId('203.0.113.10')).toBe('326');
-		expect(sourceId('2001:db8::1')).toBe('-1');
+		expect(sourceId('2001:db8:1:2::1')).toBe(String(0x2001 + 0xdb8 + 1 + 2));
+		expect(sourceId('2001:db8:1:2:ffff:ffff:ffff:ffff')).toBe(sourceId('2001:db8:1:2::1'));
+		expect(sourceId('not an address')).toBe('-1');
+	});
+
+	it('group IPv6 addresses by /64 network', () => {
+		expect(network('203.0.113.10')).toBe('203.0.113.10');
+		expect(network('2001:db8:1:2:aaaa::1')).toBe('2001:db8:1:2::/64');
+		expect(network('2001:0DB8:0001:0002:0:0:0:5')).toBe('2001:db8:1:2::/64');
+		expect(network('::1')).toBe('0:0:0:0::/64');
+		expect(ipv6Groups('::ffff:192.0.2.1')).toEqual([0, 0, 0, 0, 0, 0xffff, 0xc000, 0x0201]);
+		expect(ipv6Groups('2001:db8::1::2')).toBeNull();
+		expect(ipv6Groups('2001:db8:1:2:3:4:5')).toBeNull();
+		expect(ipv6Groups('12345::')).toBeNull();
+		expect(ipv6Groups('203.0.113.10')).toBeNull();
 	});
 });
 

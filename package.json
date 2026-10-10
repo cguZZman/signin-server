@@ -2,6 +2,7 @@
   "name": "signin-server",
   "version": "1.0.0",
   "private": true,
+  "license": "AGPL-3.0-or-later",
   "description": "Sign-in service for the Google Drive and OneDrive add-ons for Kodi, as a Cloudflare Worker",
   "type": "module",
   "scripts": {

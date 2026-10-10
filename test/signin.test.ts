@@ -50,7 +50,6 @@ describe.each([
 
 		expect((await server.get(`/pin/${code}`, { headers: basic(password) })).status).toBe(202);
 		expect((await server.get(`/pin/${code}`, { headers: basic('wrong') })).status).toBe(404);
-		expect((await server.get(`/pin/${code}`, { headers: basic(password), ip: '198.51.100.1' })).status).toBe(404);
 
 		const signin = await server.get(`/signin/${code}`);
 		expect(signin.status).toBe(302);
@@ -128,6 +127,23 @@ describe('sign-in', () => {
 		const page = await (await server.get(`/signin/${pin}`)).text();
 		expect(page).toContain('That code didn');
 		expect((await server.get(`/signin/${pin}`, { ip: '198.51.100.7' })).status).toBe(302);
+	});
+
+	it('pairs IPv6 devices on the same network (/64)', async () => {
+		const { pin } = await createPin('onedrive', '2001:db8:1:2::10');
+		expect((await server.get(`/signin/${pin}`, { ip: '2001:db8:1:3::99' })).status).toBe(200);
+		expect((await server.get(`/signin/${pin}`, { ip: '2001:0db8:0001:0002:abcd:ef01:2345:6789' })).status).toBe(302);
+	});
+
+	it('pairs over the other IP version once Kodi has polled over it with its secret', async () => {
+		const { pin, password } = await createPin('googledrive', '203.0.113.10');
+		const phone = '2001:db8:1:2:abcd::99';
+		expect((await server.get(`/signin/${pin}`, { ip: phone })).status).toBe(200);
+		expect((await server.get(`/pin/${pin}`, { headers: basic('wrong'), ip: '2001:db8:1:2::10' })).status).toBe(404);
+		expect((await server.get(`/signin/${pin}`, { ip: phone })).status, 'a wrong secret registers nothing').toBe(200);
+		expect((await server.get(`/pin/${pin}`, { headers: basic(password), ip: '2001:db8:1:2::10' })).status).toBe(202);
+		expect((await server.get(`/signin/${pin}`, { ip: phone })).status).toBe(302);
+		expect((await server.get(`/signin/${pin}`, { ip: '198.51.100.1' })).status, 'other networks still rejected').toBe(200);
 	});
 
 	it('accepts the code from the form, in any case, with O typed for zero', async () => {

@@ -1,7 +1,7 @@
 import type { Env, Store } from './env';
 import { authorizeUrl, exchangeCode, isProvider, refresh, TokenError } from './oauth';
 import { failurePage, indexPage, notFoundPage, privacyPage, successPage, tooManyPage } from './pages';
-import type { Limit } from './state';
+import { ipv6Groups, type Limit } from './state';
 
 // Ties the browser that starts the sign-in to the one that finishes it, so a sign-in link cannot be sent to
 // someone else to collect their tokens. SameSite=None because Microsoft returns with a cross-site form POST
@@ -214,8 +214,15 @@ export function clientAddress(request: Request): string {
 	return address === '::1' || address.startsWith('127.') ? '127.0.0.1' : address;
 }
 
-/** Sum of the address parts, shown to users so they can compare networks between Kodi and the browser. */
+/**
+ * Shown to users so they can compare networks between Kodi and the browser: the sum of the parts of an IPv4
+ * address, or of the four network groups (the /64) of an IPv6 address. The add-on computes the same.
+ */
 export function sourceId(address: string): string {
+	const groups = ipv6Groups(address);
+	if (groups) {
+		return String(groups.slice(0, 4).reduce((sum, g) => sum + g, 0));
+	}
 	const parts = address.split('.');
 	return parts.length === 4 && parts.every((p) => /^\d+$/.test(p)) ? String(parts.reduce((sum, p) => sum + Number(p), 0)) : '-1';
 }

@@ -121,7 +121,7 @@ export function indexPage(sourceId: string, pin = '', error?: Message): string {
 		<ul>
 			<li>Use a phone or computer on the same network (Wi-Fi) as your Kodi device.</li>
 			${EXPIRED_HELP}
-			<li><span>Your source id is</span> <strong>${escape(sourceId)}</strong>. <span>It should match the one shown in Kodi.</span></li>
+			<li><span>Your source id is</span> <strong>${escape(sourceId)}</strong>. <span>It should match one of the source ids shown in Kodi.</span></li>
 			${FORUM_LINKS}
 		</ul>
 	</details>`,

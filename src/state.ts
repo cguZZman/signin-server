@@ -11,8 +11,9 @@ interface Pin {
 	pin: string;
 	password: string;
 	provider: string;
-	// Public IP of the Kodi device. The browser must come from the same one.
-	owner: string;
+	// Networks of the Kodi device (see network()). The browser must come from one of them. Starts with the
+	// network that created the code; Kodi adds its other one (IPv4 or IPv6) by polling over it with the password.
+	owners: Set<string>;
 	expires: number;
 	// Set when the browser starts the sign-in; ties the callback to that browser (see the sign-in cookie).
 	browserNonce?: string;
@@ -65,14 +66,14 @@ export class SigninState {
 			pin = hex(3).toUpperCase();
 		} while (this.pins.has(pin));
 		const created = { pin, password: hex(256), provider, owner };
-		this.pins.set(pin, { ...created, expires: this.now() + PIN_LIFETIME_MS });
+		this.pins.set(pin, { pin, password: created.password, provider, owners: new Set([network(owner)]), expires: this.now() + PIN_LIFETIME_MS });
 		return created;
 	}
 
 	/** Starts the sign-in in a browser on the Kodi device's network. Null when the code is unknown or from another network. */
 	startSignin(pin: string, client: string): StartedSignin | null {
 		const stored = this.get(pin);
-		if (!stored || stored.owner !== client) {
+		if (!stored || !stored.owners.has(network(client))) {
 			return null;
 		}
 		stored.browserNonce = base64url(32);
@@ -103,12 +104,16 @@ export class SigninState {
 		return true;
 	}
 
-	/** Kodi collects the tokens with the secret it got with the code. Tokens are handed out once. */
+	/**
+	 * Kodi collects the tokens with the secret it got with the code. Tokens are handed out once. Only Kodi knows
+	 * the secret, so the network it polls from is one of Kodi's networks.
+	 */
 	collect(pin: string, password: string, client: string): Collected {
 		const stored = this.get(pin);
-		if (!stored || stored.owner !== client || !equal(stored.password, password)) {
+		if (!stored || !equal(stored.password, password)) {
 			return { status: 404 };
 		}
+		stored.owners.add(network(client));
 		if (!stored.tokens) {
 			return { status: 202 };
 		}
@@ -162,6 +167,42 @@ export class SigninState {
 			}
 		}
 	}
+}
+
+/**
+ * The network an address belongs to: an IPv4 address as is (a home network shares one), and for IPv6 its /64
+ * prefix, because every device on a home network gets its own IPv6 address within the network's /64.
+ */
+export function network(address: string): string {
+	const groups = ipv6Groups(address);
+	return groups ? `${groups.slice(0, 4).map((g) => g.toString(16)).join(':')}::/64` : address;
+}
+
+/** The eight 16-bit groups of an IPv6 address, or null when it isn't one. */
+export function ipv6Groups(address: string): number[] | null {
+	if (!address.includes(':')) {
+		return null;
+	}
+	const halves = address.toLowerCase().split('::');
+	if (halves.length > 2) {
+		return null;
+	}
+	const parse = (part: string | undefined) => (part ? part.split(':') : []);
+	const head = parse(halves[0]);
+	const tail = parse(halves[1]);
+	const last = tail.length ? tail : head;
+	// IPv4-mapped or embedded form, e.g. ::ffff:192.0.2.1
+	const dotted = last.at(-1);
+	if (dotted?.includes('.')) {
+		const octets = dotted.split('.').map(Number);
+		last.splice(-1, 1, ((octets[0] ?? 0) * 256 + (octets[1] ?? 0)).toString(16), ((octets[2] ?? 0) * 256 + (octets[3] ?? 0)).toString(16));
+	}
+	const missing = 8 - head.length - tail.length;
+	if (halves.length === 1 ? missing !== 0 : missing < 1) {
+		return null;
+	}
+	const groups = [...head, ...Array<string>(halves.length === 2 ? missing : 0).fill('0'), ...tail].map((g) => Number.parseInt(g, 16));
+	return groups.every((g) => g >= 0 && g <= 0xffff) ? groups : null;
 }
 
 function randomBytes(length: number): Uint8Array {
