@@ -1,0 +1,39 @@
+// Cloudflare Worker configuration. Self-hosting: change name, routes and vars; see SETUP.md.
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "signin-server",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-09-25",
+	"workers_dev": false,
+	"preview_urls": false,
+	"routes": [
+		{ "pattern": "signinserver.com", "custom_domain": true },
+		// Redirects to signinserver.com (SITE_URL).
+		{ "pattern": "signin-server.com", "custom_domain": true }
+	],
+	"assets": { "directory": "./public" },
+	"durable_objects": {
+		"bindings": [{ "name": "STORE", "class_name": "SigninStore" }]
+	},
+	// SQLite-backed class (required on the free plan). The store keeps everything in memory and never writes to it.
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["SigninStore"] }],
+	"observability": {
+		"enabled": true,
+		// Request logs would record URLs and headers; only the service's own messages (no tokens, no IPs) are kept.
+		"logs": { "enabled": true, "invocation_logs": false }
+	},
+	"vars": {
+		"SITE_URL": "https://signinserver.com",
+		"PROVIDER_GOOGLEDRIVE_CLIENT_ID": "",
+		"PROVIDER_GOOGLEDRIVE_URL_AUTHORIZE": "https://accounts.google.com/o/oauth2/v2/auth",
+		"PROVIDER_GOOGLEDRIVE_URL_TOKEN": "https://oauth2.googleapis.com/token",
+		"PROVIDER_ONEDRIVE_CLIENT_ID": "",
+		"PROVIDER_ONEDRIVE_URL_AUTHORIZE": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+		"PROVIDER_ONEDRIVE_URL_TOKEN": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+		"FUNDING_URL": "",
+		"FUNDING_GOAL": "0",
+		"FUNDING_RAISED": "0"
+	}
+	// Secrets (wrangler secret put): PROVIDER_GOOGLEDRIVE_CLIENT_SECRET, PROVIDER_ONEDRIVE_CLIENT_SECRET, and for tokens
+	// issued by the previous apps: PROVIDER_<NAME>_LEGACY_CLIENT_ID and PROVIDER_<NAME>_LEGACY_CLIENT_SECRET.
+}

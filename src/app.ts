@@ -1,0 +1,281 @@
+import type { Env, Store } from './env';
+import { authorizeUrl, exchangeCode, isProvider, refresh, TokenError } from './oauth';
+import { failurePage, indexPage, notFoundPage, privacyPage, successPage, tooManyPage } from './pages';
+import type { Limit } from './state';
+
+// Ties the browser that starts the sign-in to the one that finishes it, so a sign-in link cannot be sent to
+// someone else to collect their tokens. SameSite=None because Microsoft returns with a cross-site form POST
+// (response_mode=form_post), which would not carry a Lax cookie.
+export const SIGNIN_COOKIE = '__Host-signin';
+const SIGNIN_COOKIE_AGE_S = 5 * 60;
+const RETRY_AFTER_S = 60;
+
+// No inline scripts or styles anywhere. form-action allows https: because /authorize answers the code form
+// with a redirect to the provider's sign-in page. public/_headers sets the same headers on static files.
+const SECURITY_HEADERS: Record<string, string> = {
+	'Content-Security-Policy': [
+		"default-src 'self'",
+		"script-src 'self'",
+		"style-src 'self'",
+		"img-src 'self' data:",
+		"object-src 'none'",
+		"base-uri 'none'",
+		"frame-ancestors 'none'",
+		"form-action 'self' https:",
+	].join('; '),
+	'Strict-Transport-Security': 'max-age=31536000',
+	'X-Content-Type-Options': 'nosniff',
+	// Keeps the code in /signin/{code} out of the Referer sent to providers and donation sites.
+	'Referrer-Policy': 'no-referrer',
+};
+
+export async function handle(request: Request, env: Env, store: Store): Promise<Response> {
+	let response: Response;
+	try {
+		response = await route(request, env, store);
+	} catch (e) {
+		// Only the error's message: requests may contain tokens.
+		console.error(`Request failed: ${request.method} ${new URL(request.url).pathname.replace(/^\/(pin|signin)\/.*/, '/$1/*')} ${e instanceof Error ? e.message : e}`);
+		response = new Response(failurePage(), { status: 500, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+	}
+	const secured = new Response(response.body, response);
+	for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+		secured.headers.set(name, value);
+	}
+	return secured;
+}
+
+async function route(request: Request, env: Env, store: Store): Promise<Response> {
+	const url = new URL(request.url);
+	const site = new URL(env.SITE_URL);
+	const read = request.method === 'GET' || request.method === 'HEAD';
+	// Plain HTTP, and other host names of this Worker (e.g. signin-server.com), go to the site address.
+	if ((env.REQUIRE_HTTPS !== 'false' && url.protocol === 'http:') || url.host !== site.host) {
+		// 308 keeps the method and body for POSTs.
+		return redirect(new URL(url.pathname + url.search, site).toString(), read ? 301 : 308);
+	}
+
+	const client = clientAddress(request);
+	const path = url.pathname;
+	const limited = await store.acquire(limits(env, request, path, client, await refreshTokenHash(request)));
+	if (limited) {
+		console.warn(`Rate limit exceeded: ${limited}`);
+		const html = (request.headers.get('Accept') ?? '').includes('text/html');
+		return new Response(html ? tooManyPage() : 'Too many requests', {
+			status: 429,
+			headers: { 'Content-Type': html ? 'text/html; charset=utf-8' : 'text/plain', 'Retry-After': String(RETRY_AFTER_S) },
+		});
+	}
+
+	if (path === '/' && read) {
+		return html(indexPage(sourceId(client)));
+	}
+	if (path === '/authorize') {
+		return signin(env, store, client, (await params(request)).get('pin') ?? '');
+	}
+	if (path.startsWith('/signin/')) {
+		return signin(env, store, client, path.slice('/signin/'.length));
+	}
+	if (path === '/callback') {
+		return callback(env, store, request, await params(request));
+	}
+	if (path === '/auth-success' && read) {
+		return html(successPage(funding(env)));
+	}
+	if (path === '/failure' && read) {
+		return html(failurePage());
+	}
+	if (path === '/privacypolicy' && read) {
+		return html(privacyPage());
+	}
+	if (path === '/pin' && request.method === 'POST') {
+		const provider = (await params(request)).get('provider');
+		if (!isProvider(provider)) {
+			return json({ status: 400, error: 'Invalid provider' }, 400);
+		}
+		return json(await store.createPin(provider, client));
+	}
+	if (path.startsWith('/pin/') && read) {
+		const collected = await store.collect(path.slice('/pin/'.length), basicPassword(request), client);
+		if (collected.status === 200) {
+			return json(collected.tokens);
+		}
+		return collected.status === 202 ? new Response(null, { status: 202 }) : json({ status: 404, error: 'Not Found' }, 404);
+	}
+	if (path === '/refresh' && request.method === 'POST') {
+		const form = await params(request);
+		const provider = form.get('provider');
+		const refreshToken = form.get('refresh_token');
+		if (!isProvider(provider) || !refreshToken) {
+			return json({ status: 400, error: 'Provider and refresh token required' }, 400);
+		}
+		try {
+			return json(await refresh(env, provider, refreshToken));
+		} catch (e) {
+			if (e instanceof TokenError && e.status >= 400 && e.status < 500) {
+				return json({ status: e.status, error: e.error ?? 'Token request failed' }, e.status);
+			}
+			throw e;
+		}
+	}
+	if (path === '/ip' && read) {
+		return new Response(client, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+	}
+	return new Response(notFoundPage(), { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+}
+
+/** Sends the browser to the provider when the code exists and was created from this network. */
+async function signin(env: Env, store: Store, client: string, pin: string): Promise<Response> {
+	// The letter O is a common typo for zero: codes are hexadecimal.
+	const code = pin.trim().toUpperCase().replace(/O/g, '0');
+	const started = code ? await store.startSignin(code, client) : null;
+	if (!started) {
+		return html(indexPage(sourceId(client), code.slice(0, 6), 'error.pin.invalid'));
+	}
+	const response = redirect(await authorizeUrl(env, started.provider, code, started.codeVerifier), 302);
+	response.headers.append('Set-Cookie', signinCookie(started.browserNonce, SIGNIN_COOKIE_AGE_S));
+	return response;
+}
+
+async function callback(env: Env, store: Store, request: Request, form: URLSearchParams): Promise<Response> {
+	const error = form.get('error');
+	const state = form.get('state');
+	const code = form.get('code');
+	if (error === 'access_denied') {
+		return html(failurePage({ message: 'failure.denied' }));
+	}
+	if (error) {
+		return html(failurePage({ text: `${error}: ${form.get('error_description') ?? ''}` }));
+	}
+	if (!state || !code) {
+		return html(failurePage({ message: 'failure.code.3' }));
+	}
+	const finished = await store.finishSignin(state, cookie(request, SIGNIN_COOKIE));
+	if (finished.status === 'expired') {
+		return html(failurePage({ message: 'failure.code.1' }));
+	}
+	if (finished.status === 'other-browser') {
+		console.warn('Sign-in callback rejected: not finished in the browser that started it');
+		return html(failurePage({ message: 'failure.code.4' }));
+	}
+	const clearCookie = signinCookie('', 0);
+	let page: Response;
+	try {
+		const tokens = await exchangeCode(env, finished.provider, code, finished.codeVerifier);
+		page = (await store.storeTokens(state, tokens)) ? redirect('/auth-success', 302) : html(failurePage({ message: 'failure.code.1' }));
+	} catch (e) {
+		if (!(e instanceof TokenError)) {
+			throw e;
+		}
+		page = html(failurePage({ message: 'failure.code.2', text: e.error ? `(${e.error})` : undefined }));
+	}
+	page.headers.append('Set-Cookie', clearCookie);
+	return page;
+}
+
+function limits(env: Env, request: Request, path: string, client: string, tokenHash: string | null): Limit[] {
+	const post = request.method === 'POST';
+	if (post && path === '/pin') {
+		return [{ name: 'pin', key: `pin:${client}`, limit: number(env.RATE_LIMIT_PIN, 10) }];
+	}
+	if (path === '/authorize' || path.startsWith('/signin/')) {
+		return [{ name: 'signin', key: `signin:${client}`, limit: number(env.RATE_LIMIT_SIGNIN, 20) }];
+	}
+	if (post && path === '/refresh') {
+		const limits = [{ name: 'refresh per IP', key: `refresh-ip:${client}`, limit: number(env.RATE_LIMIT_REFRESH_IP, 60) }];
+		if (tokenHash) {
+			limits.push({ name: 'refresh per token', key: `refresh-token:${tokenHash}`, limit: number(env.RATE_LIMIT_REFRESH_TOKEN, 10) });
+		}
+		return limits;
+	}
+	return [];
+}
+
+/** Refresh tokens are counted by their SHA-256 hash, never kept as they are. */
+async function refreshTokenHash(request: Request): Promise<string | null> {
+	if (request.method !== 'POST' || new URL(request.url).pathname !== '/refresh') {
+		return null;
+	}
+	const token = (await params(request)).get('refresh_token');
+	if (!token) {
+		return null;
+	}
+	const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+	return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * The client's public IP address, used to pair the browser with the Kodi device and as the rate-limit key.
+ * Cloudflare sets CF-Connecting-IP and overwrites any value the client sends.
+ */
+export function clientAddress(request: Request): string {
+	const address = request.headers.get('CF-Connecting-IP') ?? '127.0.0.1';
+	// IPv4 and IPv6 loopback are the same machine (local development); production never sees them.
+	return address === '::1' || address.startsWith('127.') ? '127.0.0.1' : address;
+}
+
+/** Sum of the address parts, shown to users so they can compare networks between Kodi and the browser. */
+export function sourceId(address: string): string {
+	const parts = address.split('.');
+	return parts.length === 4 && parts.every((p) => /^\d+$/.test(p)) ? String(parts.reduce((sum, p) => sum + Number(p), 0)) : '-1';
+}
+
+// Query string and form body parameters together, like a servlet's request parameters. Reads a clone,
+// so the body can be read again.
+async function params(request: Request): Promise<URLSearchParams> {
+	const all = new URLSearchParams(new URL(request.url).search);
+	if (request.method === 'POST' && (request.headers.get('Content-Type') ?? '').startsWith('application/x-www-form-urlencoded')) {
+		for (const [name, value] of new URLSearchParams(await request.clone().text())) {
+			all.append(name, value);
+		}
+	}
+	return all;
+}
+
+function basicPassword(request: Request): string {
+	const [scheme, value] = (request.headers.get('Authorization') ?? '').split(' ');
+	if (scheme?.toLowerCase() !== 'basic' || !value) {
+		return '';
+	}
+	try {
+		const credentials = atob(value);
+		return credentials.slice(credentials.indexOf(':') + 1);
+	} catch {
+		return '';
+	}
+}
+
+function cookie(request: Request, name: string): string | null {
+	for (const part of (request.headers.get('Cookie') ?? '').split(';')) {
+		const [key, ...value] = part.trim().split('=');
+		if (key === name) {
+			return value.join('=');
+		}
+	}
+	return null;
+}
+
+function signinCookie(value: string, maxAge: number): string {
+	return `${SIGNIN_COOKIE}=${value}; Path=/; Max-Age=${maxAge}; Secure; HttpOnly; SameSite=None`;
+}
+
+function funding(env: Env) {
+	return env.FUNDING_URL ? { url: env.FUNDING_URL, goal: number(env.FUNDING_GOAL, 0), raised: number(env.FUNDING_RAISED, 0) } : null;
+}
+
+function number(value: string | undefined, fallback: number): number {
+	const parsed = Number.parseInt(value ?? '', 10);
+	return Number.isNaN(parsed) ? fallback : parsed;
+}
+
+function html(body: string): Response {
+	return new Response(body, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+}
+
+function json(body: unknown, status = 200): Response {
+	return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+}
+
+function redirect(location: string, status: number): Response {
+	return new Response(null, { status, headers: { Location: location } });
+}
