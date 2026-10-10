@@ -4,7 +4,7 @@ This guide sets up your own instance of the sign-in service on Cloudflare Worker
 
 You need:
 
-- A Cloudflare account, and a domain whose DNS is on Cloudflare (the Worker gets a custom domain on it).
+- A Cloudflare account, and a domain whose DNS is on Cloudflare (the Worker gets a custom domain on it). Use a domain for this service only: the settings in step 3 apply to the whole domain.
 - Node.js 22 or later.
 - A Google Cloud project for Google Drive, a Microsoft Entra app registration for OneDrive, or both.
 
@@ -91,8 +91,10 @@ A refresh is tried with the current app first, and with the legacy app when the 
 
 In the Cloudflare dashboard, for your domain:
 
-- **Network → IPv6 Compatibility: off.** The service pairs the browser with the Kodi device by public IP address, and the add-ons show and compare IPv4 addresses. With IPv6 on, a phone and a TV on the same Wi-Fi usually have different IPv6 addresses, or use different IP versions, and the sign-in fails.
-- **SSL/TLS → Edge Certificates → Always Use HTTPS: on** (the Worker also redirects plain HTTP).
+- **Security → Settings → Browser Integrity Check: off.** It blocks requests whose user agent looks like a script, and the add-ons use Python's default one (`Python-urllib`), so Kodi would get error 1010 instead of a sign-in code. It runs before the Worker, so the Worker can't let these requests through.
+- Leave **Bot Fight Mode** off, for the same reason.
+
+The Worker redirects plain HTTP to HTTPS itself. IPv6 stays on (the Free plan can't turn it off): the service pairs IPv4 clients by address and IPv6 clients by network (/64), and current add-on versions report both networks of the Kodi device.
 
 ## 4. Deploy
 
