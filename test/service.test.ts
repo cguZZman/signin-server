@@ -19,7 +19,7 @@ describe('pages', () => {
 	it('render', async () => {
 		const index = await (await server.get('/')).text();
 		expect(index).toContain('Connect Kodi to your cloud drive');
-		expect(index, 'warns against codes from others (device-code phishing)').toContain('Only enter a code that your own Kodi device shows');
+		expect(index, 'warns against codes from others (device-code phishing)').toContain('Only enter a code shown by your own Kodi device');
 		expect(index).toContain('never asks for or sees your password');
 		const success = await server.get('/auth-success');
 		expect(success.status).toBe(200);

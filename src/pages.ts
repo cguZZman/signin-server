@@ -101,7 +101,7 @@ export function indexPage(sourceId: string, pin = '', error?: Message): string {
 		'code',
 		`<h1>Connect Kodi to your cloud drive</h1>
 	<p class="lead">Enter the code shown on your TV. You'll then sign in with Google or Microsoft.</p>
-	<p class="notice"><strong>Only enter a code that your own Kodi device shows.</strong> If someone sent you a code or a link to this page, don't use it: it would give them access to your files.</p>
+	<p class="notice">Only enter a code shown by your own Kodi device, never one someone sent you.</p>
 
 	<form class="code-form" method="post" action="/authorize">
 		<label class="visually-hidden" for="pin">Code from your TV</label>
@@ -118,15 +118,15 @@ export function indexPage(sourceId: string, pin = '', error?: Message): string {
 		<button class="button primary block" type="submit">Continue</button>
 	</form>
 
-	<section class="about">
-		<h2>What is this?</h2>
+	<details class="help">
+		<summary>What is this?</summary>
 		<p>
 			This page connects the <strong>Google Drive</strong> and <strong>OneDrive</strong> add-ons for
 			<a href="https://kodi.tv/">Kodi</a>, the open-source media center, to your account, so you can play your files on your TV.
 			You sign in on Google's or Microsoft's own page; this site never asks for or sees your password, and the add-ons can only read your files.
 			It is an open-source project: <a href="${SOURCE_URL}">source code</a>, <a href="/privacypolicy">privacy policy</a>.
 		</p>
-	</section>
+	</details>
 
 	<details class="help">
 		<summary>Having trouble?</summary>

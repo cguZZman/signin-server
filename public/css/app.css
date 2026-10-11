@@ -350,32 +350,12 @@ h2 {
 	font-size: 0.9375rem;
 }
 
-/* Notice and about */
+/* Notice */
 
 .notice {
-	margin: 0 0 20px;
-	padding: 12px 14px;
-	border-radius: 12px;
-	background: var(--accent-soft);
-	font-size: 0.9375rem;
-	text-align: left;
-}
-
-.about {
-	margin-top: 24px;
-	font-size: 0.9375rem;
+	margin: -8px 0 20px;
+	font-size: 0.875rem;
 	color: var(--muted);
-	text-align: left;
-}
-
-.about h2 {
-	margin: 0 0 6px;
-	font-size: 1rem;
-	color: var(--text);
-}
-
-.about p {
-	margin: 0;
 }
 
 /* Help disclosure */
@@ -393,6 +373,15 @@ h2 {
 	cursor: pointer;
 	color: var(--text);
 	font-weight: 600;
+}
+
+.help p {
+	margin: 12px 0 0;
+}
+
+.help + .help {
+	margin-top: 12px;
+	padding-top: 12px;
 }
 
 .help ul {
