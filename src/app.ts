@@ -1,4 +1,5 @@
 import type { Env, Store } from './env';
+import { type Messages, messages, negotiate } from './i18n';
 import { authorizeUrl, exchangeCode, isProvider, refresh, TokenError } from './oauth';
 import { failurePage, indexPage, notFoundPage, privacyPage, successPage, tooManyPage } from './pages';
 import { ipv6Groups, type Limit } from './state';
@@ -30,22 +31,28 @@ const SECURITY_HEADERS: Record<string, string> = {
 };
 
 export async function handle(request: Request, env: Env, store: Store): Promise<Response> {
+	const lang = negotiate(request.headers.get('Accept-Language'), new URL(request.url).searchParams.get('lang'));
+	const t = messages(lang);
 	let response: Response;
 	try {
-		response = await route(request, env, store);
+		response = await route(request, env, store, t);
 	} catch (e) {
 		// Only the error's message: requests may contain tokens.
 		console.error(`Request failed: ${request.method} ${new URL(request.url).pathname.replace(/^\/(pin|signin)\/.*/, '/$1/*')} ${e instanceof Error ? e.message : e}`);
-		response = new Response(failurePage(), { status: 500, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+		response = new Response(failurePage(t), { status: 500, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 	}
 	const secured = new Response(response.body, response);
 	for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
 		secured.headers.set(name, value);
 	}
+	if ((secured.headers.get('Content-Type') ?? '').startsWith('text/html')) {
+		secured.headers.set('Content-Language', t.tag);
+		secured.headers.append('Vary', 'Accept-Language');
+	}
 	return secured;
 }
 
-async function route(request: Request, env: Env, store: Store): Promise<Response> {
+async function route(request: Request, env: Env, store: Store, t: Messages): Promise<Response> {
 	const url = new URL(request.url);
 	const site = new URL(env.SITE_URL);
 	const read = request.method === 'GET' || request.method === 'HEAD';
@@ -61,32 +68,32 @@ async function route(request: Request, env: Env, store: Store): Promise<Response
 	if (limited) {
 		console.warn(`Rate limit exceeded: ${limited}`);
 		const html = (request.headers.get('Accept') ?? '').includes('text/html');
-		return new Response(html ? tooManyPage() : 'Too many requests', {
+		return new Response(html ? tooManyPage(t) : 'Too many requests', {
 			status: 429,
 			headers: { 'Content-Type': html ? 'text/html; charset=utf-8' : 'text/plain', 'Retry-After': String(RETRY_AFTER_S) },
 		});
 	}
 
 	if (path === '/' && read) {
-		return html(indexPage(sourceId(client)));
+		return html(indexPage(t, sourceId(client)));
 	}
 	if (path === '/authorize') {
-		return signin(env, store, client, (await params(request)).get('pin') ?? '');
+		return signin(env, store, t, client, (await params(request)).get('pin') ?? '');
 	}
 	if (path.startsWith('/signin/')) {
-		return signin(env, store, client, path.slice('/signin/'.length));
+		return signin(env, store, t, client, path.slice('/signin/'.length));
 	}
 	if (path === '/callback') {
-		return callback(env, store, request, await params(request));
+		return callback(env, store, t, request, await params(request));
 	}
 	if (path === '/auth-success' && read) {
-		return html(successPage(funding(env)));
+		return html(successPage(t, funding(env)));
 	}
 	if (path === '/failure' && read) {
-		return html(failurePage());
+		return html(failurePage(t));
 	}
 	if (path === '/privacypolicy' && read) {
-		return html(privacyPage());
+		return html(privacyPage(t));
 	}
 	if (path === '/pin' && request.method === 'POST') {
 		const provider = (await params(request)).get('provider');
@@ -121,53 +128,53 @@ async function route(request: Request, env: Env, store: Store): Promise<Response
 	if (path === '/ip' && read) {
 		return new Response(client, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 	}
-	return new Response(notFoundPage(), { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+	return new Response(notFoundPage(t), { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 }
 
 /** Sends the browser to the provider when the code exists and was created from this network. */
-async function signin(env: Env, store: Store, client: string, pin: string): Promise<Response> {
+async function signin(env: Env, store: Store, t: Messages, client: string, pin: string): Promise<Response> {
 	// The letter O is a common typo for zero: codes are hexadecimal.
 	const code = pin.trim().toUpperCase().replace(/O/g, '0');
 	const started = code ? await store.startSignin(code, client) : null;
 	if (!started) {
-		return html(indexPage(sourceId(client), code.slice(0, 6), 'error.pin.invalid'));
+		return html(indexPage(t, sourceId(client), code.slice(0, 6), 'error.pin.invalid'));
 	}
 	const response = redirect(await authorizeUrl(env, started.provider, code, started.codeVerifier), 302);
 	response.headers.append('Set-Cookie', signinCookie(started.browserNonce, SIGNIN_COOKIE_AGE_S));
 	return response;
 }
 
-async function callback(env: Env, store: Store, request: Request, form: URLSearchParams): Promise<Response> {
+async function callback(env: Env, store: Store, t: Messages, request: Request, form: URLSearchParams): Promise<Response> {
 	const error = form.get('error');
 	const state = form.get('state');
 	const code = form.get('code');
 	if (error === 'access_denied') {
-		return html(failurePage({ message: 'failure.denied' }));
+		return html(failurePage(t, { message: 'failure.denied' }));
 	}
 	if (error) {
-		return html(failurePage({ text: `${error}: ${form.get('error_description') ?? ''}` }));
+		return html(failurePage(t, { text: `${error}: ${form.get('error_description') ?? ''}` }));
 	}
 	if (!state || !code) {
-		return html(failurePage({ message: 'failure.code.3' }));
+		return html(failurePage(t, { message: 'failure.code.3' }));
 	}
 	const finished = await store.finishSignin(state, cookie(request, SIGNIN_COOKIE));
 	if (finished.status === 'expired') {
-		return html(failurePage({ message: 'failure.code.1' }));
+		return html(failurePage(t, { message: 'failure.code.1' }));
 	}
 	if (finished.status === 'other-browser') {
 		console.warn('Sign-in callback rejected: not finished in the browser that started it');
-		return html(failurePage({ message: 'failure.code.4' }));
+		return html(failurePage(t, { message: 'failure.code.4' }));
 	}
 	const clearCookie = signinCookie('', 0);
 	let page: Response;
 	try {
 		const tokens = await exchangeCode(env, finished.provider, code, finished.codeVerifier);
-		page = (await store.storeTokens(state, tokens)) ? redirect('/auth-success', 302) : html(failurePage({ message: 'failure.code.1' }));
+		page = (await store.storeTokens(state, tokens)) ? redirect('/auth-success', 302) : html(failurePage(t, { message: 'failure.code.1' }));
 	} catch (e) {
 		if (!(e instanceof TokenError)) {
 			throw e;
 		}
-		page = html(failurePage({ message: 'failure.code.2', text: e.error ? `(${e.error})` : undefined }));
+		page = html(failurePage(t, { message: 'failure.code.2', text: e.error ? `(${e.error})` : undefined }));
 	}
 	page.headers.append('Set-Cookie', clearCookie);
 	return page;
