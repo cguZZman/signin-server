@@ -7,8 +7,9 @@
 	"workers_dev": false,
 	"preview_urls": false,
 	"routes": [
+		{ "pattern": "drive.signinserver.com", "custom_domain": true },
+		// Redirect to drive.signinserver.com (SITE_URL), until they serve something else.
 		{ "pattern": "signinserver.com", "custom_domain": true },
-		// Redirects to signinserver.com (SITE_URL).
 		{ "pattern": "signin-server.com", "custom_domain": true }
 	],
 	"assets": { "directory": "./public" },
@@ -23,7 +24,7 @@
 		"logs": { "enabled": true, "invocation_logs": false }
 	},
 	"vars": {
-		"SITE_URL": "https://signinserver.com",
+		"SITE_URL": "https://drive.signinserver.com",
 		"PROVIDER_GOOGLEDRIVE_CLIENT_ID": "",
 		"PROVIDER_GOOGLEDRIVE_URL_AUTHORIZE": "https://accounts.google.com/o/oauth2/v2/auth",
 		"PROVIDER_GOOGLEDRIVE_URL_TOKEN": "https://oauth2.googleapis.com/token",

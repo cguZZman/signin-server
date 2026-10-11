@@ -4,7 +4,7 @@ The sign-in service used by the [Google Drive](https://github.com/cguZZman/plugi
 
 A TV can't easily show a Google or Microsoft sign-in page, and the add-ons can't keep an OAuth client secret private. This small service does both jobs: it lets you sign in from your phone or computer with a short code shown in Kodi, and it adds the client secret when the add-on refreshes its tokens.
 
-The public instance runs at <https://signinserver.com>. You can also [host your own](SETUP.md) on Cloudflare's free plan and point the add-ons at it.
+The public instance runs at <https://drive.signinserver.com>. You can also [host your own](SETUP.md) on Cloudflare's free plan and point the add-ons at it.
 
 It replaces [drive-login](https://github.com/cguZZman/drive-login), the earlier Spring Boot version, and speaks the same protocol, so add-ons work with either.
 

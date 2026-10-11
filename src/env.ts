@@ -2,7 +2,7 @@ import type { SigninState } from './state';
 
 /** Configuration: plain values in wrangler.jsonc ("vars"), client secrets as Worker secrets. See SETUP.md. */
 export interface Env {
-	// Public address of the service, e.g. https://signinserver.com. The OAuth callback is SITE_URL/callback.
+	// Public address of the service, e.g. https://drive.signinserver.com. The OAuth callback is SITE_URL/callback.
 	SITE_URL: string;
 	REQUIRE_HTTPS?: string;
 	RATE_LIMIT_PIN?: string;
