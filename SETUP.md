@@ -6,7 +6,7 @@ You need:
 
 - A Cloudflare account, and a domain whose DNS is on Cloudflare (the Worker gets a custom domain on it). Use a domain for this service only: the settings in step 3 apply to the whole domain.
 - Node.js 22 or later.
-- A Google Cloud project for Google Drive, a Microsoft Entra app registration for OneDrive, or both.
+- A Google Cloud project for Google Drive, a Microsoft Entra app registration for OneDrive, a Dropbox app for Dropbox, or any of them.
 
 In the steps below, `https://login.example.com` stands for your service's address.
 
@@ -35,6 +35,13 @@ The service only needs the providers you want to use.
 2. **Certificates & secrets → New client secret.** Copy the value (not the ID). Client secrets expire (at most after 24 months), so note when to renew it.
 3. **API permissions → Add a permission → Microsoft Graph → Delegated permissions:** `Files.Read.All`, `Sites.Read.All`, `User.Read` and `offline_access`.
 
+### Dropbox
+
+1. In the [Dropbox App Console](https://www.dropbox.com/developers/apps), create an app: **Scoped access**, **Full Dropbox**. Its name can't contain "Dropbox".
+2. **Permissions:** `account_info.read`, `files.metadata.read` and `files.content.read`.
+3. **Settings → OAuth 2 → Redirect URIs:** `https://login.example.com/callback`. Keep the **App key** and **App secret**.
+4. New apps are in development status: up to 500 users can link them (click **Enable additional users** to allow others than you). Apply for production when you need more.
+
 ## 2. Configure the Worker
 
 Clone this repository and install the tools:
@@ -55,6 +62,7 @@ Edit `wrangler.jsonc`:
 | `SITE_URL` | `https://login.example.com`. The OAuth callback is `SITE_URL/callback`; requests to any other host name of the Worker redirect here. |
 | `PROVIDER_GOOGLEDRIVE_CLIENT_ID` | Your Google client ID (empty if you don't use Google Drive) |
 | `PROVIDER_ONEDRIVE_CLIENT_ID` | Your Entra application (client) ID (empty if you don't use OneDrive) |
+| `PROVIDER_DROPBOX_CLIENT_ID` | Your Dropbox app key (empty if you don't use Dropbox) |
 | `PROVIDER_*_URL_AUTHORIZE`, `PROVIDER_*_URL_TOKEN` | Already set to Google's and Microsoft's endpoints. |
 | `FUNDING_URL`, `FUNDING_GOAL`, `FUNDING_RAISED` | Optional donation card on the success page. Leave `FUNDING_URL` empty to hide it. |
 
@@ -74,6 +82,7 @@ Store the client secrets as encrypted Worker secrets, never in `wrangler.jsonc`:
 ```bash
 npx wrangler secret put PROVIDER_GOOGLEDRIVE_CLIENT_SECRET
 npx wrangler secret put PROVIDER_ONEDRIVE_CLIENT_SECRET
+npx wrangler secret put PROVIDER_DROPBOX_CLIENT_SECRET
 ```
 
 ### Moving from another OAuth app
