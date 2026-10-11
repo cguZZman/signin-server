@@ -123,7 +123,12 @@ The phone or computer you sign in with must be on the same network as the Kodi d
 
 ## 7. Adapt the pages to your instance
 
-The pages describe the public instance. Before others use yours, review `src/pages.ts`: the privacy policy (who runs the service and how to contact you; Google and Microsoft review this page if you publish your apps), the source code link and the page texts.
+The pages describe the public instance. Before others use yours, review:
+
+- `src/messages/en.ts`, `es.ts` and `pt.ts`: the page texts and the privacy policy in each language (who runs the service and how to contact you; Google and Microsoft review the privacy policy if you publish your apps).
+- `src/pages.ts`: the source code link (`SOURCE_URL`) and the app name, which should match the name on your OAuth consent screens.
+
+The page language follows the browser's `Accept-Language` (English, Spanish or Portuguese, English by default); `?lang=en` forces one for a page. To add a language, add a file to `src/messages/` and list it in `src/i18n.ts`: the type checker reports any missing text.
 
 ## Endpoints
 
