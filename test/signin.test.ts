@@ -39,6 +39,7 @@ function callback(method: string, state: string, code: string, browser: string |
 describe.each([
 	['googledrive', 'https://www.googleapis.com/auth/drive.readonly', 'GET'],
 	['onedrive', 'offline_access sites.read.all files.read.all user.read', 'POST'],
+	['dropbox', 'account_info.read files.metadata.read files.content.read sharing.read', 'GET'],
 ])('sign-in with %s', (provider, scope, callbackMethod) => {
 	it('runs the whole flow', async () => {
 		const pin = (await (await server.post('/pin', { provider })).json()) as Record<string, string>;
@@ -69,7 +70,13 @@ describe.each([
 			scope,
 			code_challenge_method: 'S256',
 		});
-		expect(query).toMatchObject(provider === 'onedrive' ? { response_mode: 'form_post' } : { access_type: 'offline', prompt: 'consent' });
+		expect(query).toMatchObject(
+			{
+				googledrive: { access_type: 'offline', prompt: 'consent' },
+				onedrive: { response_mode: 'form_post' },
+				dropbox: { token_access_type: 'offline' },
+			}[provider] ?? {},
+		);
 
 		const back = await callback(callbackMethod, code, 'the-code', cookieValue(setCookie));
 		expect(back.status).toBe(302);
@@ -118,7 +125,7 @@ describe('sign-in', () => {
 	});
 
 	it('rejects unknown providers', async () => {
-		expect((await server.post('/pin', { provider: 'dropbox' })).status).toBe(400);
+		expect((await server.post('/pin', { provider: 'box' })).status).toBe(400);
 		expect((await server.post('/pin', {})).status).toBe(400);
 	});
 

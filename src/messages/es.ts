@@ -8,14 +8,14 @@ export const es: Messages = {
 	index: {
 		title: 'Ingresa tu código',
 		heading: 'Conecta Kodi con tu nube',
-		lead: 'Ingresa el código que aparece en tu TV. Después iniciarás sesión con Google o Microsoft.',
+		lead: 'Ingresa el código que aparece en tu TV. Después iniciarás sesión con Google, Microsoft o Dropbox.',
 		notice: 'Ingresa solo un código que muestre tu propio dispositivo Kodi, nunca uno que alguien te haya enviado.',
 		codeLabel: 'Código de tu TV',
 		continue: 'Continuar',
 		aboutSummary: '¿Qué es esto?',
-		about: (source) => `Esta página conecta los complementos <strong>Google Drive</strong> y <strong>OneDrive</strong> de
+		about: (source) => `Esta página conecta los complementos <strong>Google Drive</strong>, <strong>OneDrive</strong> y <strong>Dropbox</strong> de
 			<a href="https://kodi.tv/">Kodi</a>, el centro multimedia de código abierto, con tu cuenta, para que puedas reproducir tus archivos en tu TV.
-			Inicias sesión en la propia página de Google o Microsoft: este sitio nunca te pide ni ve tu contraseña, y los complementos solo pueden leer tus archivos.
+			Inicias sesión en la propia página de Google, Microsoft o Dropbox: este sitio nunca te pide ni ve tu contraseña, y los complementos solo pueden leer tus archivos.
 			Es un proyecto de código abierto: <a href="${source}">código fuente</a>, <a href="/privacypolicy">política de privacidad</a>.`,
 	},
 	help: {
@@ -56,25 +56,25 @@ export const es: Messages = {
 	footer: {
 		privacy: 'Política de privacidad',
 		source: 'Código fuente',
-		disclaimer: 'Sin afiliación ni respaldo de Team Kodi, Google ni Microsoft.',
+		disclaimer: 'Sin afiliación ni respaldo de Team Kodi, Google, Microsoft ni Dropbox.',
 	},
 	privacy: {
 		title: 'Política de privacidad',
 		body: (source) => `
 	<h1>Política de privacidad</h1>
-	<p class="meta">Última actualización: 10 de octubre de 2026</p>
+	<p class="meta">Última actualización: 11 de octubre de 2026</p>
 	<p class="meta">Esta es una traducción. Si hay alguna diferencia, prevalece la <a href="/privacypolicy?lang=en">versión original en inglés</a>.</p>
 
 	<p>
-		Esta política cubre los complementos <strong>Google Drive</strong> y <strong>OneDrive</strong> para Kodi y este servicio de inicio de sesión.
+		Esta política cubre los complementos <strong>Google Drive</strong>, <strong>OneDrive</strong> y <strong>Dropbox</strong> para Kodi y este servicio de inicio de sesión.
 		Son proyectos de código abierto desarrollados y operados por Carlos Guzman (cguZZman). No tienen afiliación ni respaldo de
-		Team Kodi, Google ni Microsoft.
+		Team Kodi, Google, Microsoft ni Dropbox.
 	</p>
 
 	<h2>En resumen</h2>
 	<ul>
 		<li>Los complementos solo <strong>leen</strong> tus archivos para que puedas explorarlos y reproducirlos en Kodi. Nunca cambian ni eliminan nada.</li>
-		<li>Tus archivos van directamente entre tu dispositivo Kodi y Google o Microsoft. Nunca pasan por este servidor.</li>
+		<li>Tus archivos van directamente entre tu dispositivo Kodi y Google, Microsoft o Dropbox. Nunca pasan por este servidor.</li>
 		<li>Este servidor solo ayuda a tu dispositivo Kodi a iniciar sesión. Guarda los datos del inicio de sesión en memoria durante 3 minutos como máximo y nunca los almacena.</li>
 		<li>Nada se vende, se comparte con terceros ni se usa para publicidad.</li>
 	</ul>
@@ -96,16 +96,27 @@ export const es: Messages = {
 		<dt><code>offline_access</code></dt>
 		<dd>Mantener la sesión iniciada sin pedirte que vuelvas a iniciar sesión cada hora.</dd>
 	</dl>
+	<h3>Dropbox</h3>
+	<dl class="scopes">
+		<dt><code>account_info.read</code></dt>
+		<dd>Mostrar el nombre de tu cuenta en el menú de Kodi.</dd>
+		<dt><code>files.metadata.read</code></dt>
+		<dd>Listar tus carpetas y archivos, y buscar en ellos. Acceso de solo lectura.</dd>
+		<dt><code>files.content.read</code></dt>
+		<dd>Reproducir y mostrar tus archivos (videos, música, imágenes y subtítulos). Acceso de solo lectura.</dd>
+		<dt><code>sharing.read</code></dt>
+		<dd>Listar las carpetas y los archivos que otras personas compartieron contigo. Acceso de solo lectura.</dd>
+	</dl>
 
 	<h2>Cómo circulan tus datos</h2>
 	<h3>Tus archivos</h3>
 	<p>
-		Tu dispositivo Kodi pide los nombres de archivo, las carpetas, las miniaturas y el contenido de los archivos directamente a Google o
-		Microsoft, y solo se usan para mostrarlos y reproducirlos en Kodi. Nunca pasan por este servidor.
+		Tu dispositivo Kodi pide los nombres de archivo, las carpetas, las miniaturas y el contenido de los archivos directamente a Google,
+		Microsoft o Dropbox, y solo se usan para mostrarlos y reproducirlos en Kodi. Nunca pasan por este servidor.
 	</p>
 	<h3>Inicio de sesión</h3>
 	<p>
-		Cuando ingresas el código de tu TV, este servidor te envía a Google o Microsoft para iniciar sesión. Cuando das tu autorización, el
+		Cuando ingresas el código de tu TV, este servidor te envía a Google, Microsoft o Dropbox para iniciar sesión. Cuando das tu autorización, el
 		proveedor envía a este servidor un código de autorización de un solo uso. El servidor lo cambia por tokens de acceso y de
 		actualización, y los guarda <strong>en memoria</strong> hasta que tu dispositivo Kodi los recoge, como máximo 3 minutos después. Luego
 		se eliminan. Los tokens nunca se escriben en disco ni en registros.
@@ -122,7 +133,7 @@ export const es: Messages = {
 	<h3>Mantener la sesión iniciada</h3>
 	<p>
 		Aproximadamente una vez por hora, tu dispositivo Kodi envía su token de actualización a este servidor. El servidor agrega las
-		credenciales de la aplicación, reenvía la solicitud a Google o Microsoft y devuelve el nuevo token de acceso a tu dispositivo. No
+		credenciales de la aplicación, reenvía la solicitud a Google, Microsoft o Dropbox y devuelve el nuevo token de acceso a tu dispositivo. No
 		guarda los tokens ni los registra.
 	</p>
 	<h3>Protección contra abusos</h3>
@@ -149,7 +160,7 @@ export const es: Messages = {
 	<h2>Cómo se protegen tus datos</h2>
 	<p>Los datos de usuario de Google y los tokens de inicio de sesión son sensibles, y se protegen así:</p>
 	<ul>
-		<li><strong>Cifrado en tránsito:</strong> todo el tráfico entre tu navegador, tu dispositivo Kodi, este servidor, Google y Microsoft usa HTTPS (TLS). Este servidor solo acepta HTTPS e indica a los navegadores que nunca usen HTTP sin cifrar (HSTS).</li>
+		<li><strong>Cifrado en tránsito:</strong> todo el tráfico entre tu navegador, tu dispositivo Kodi, este servidor, Google, Microsoft y Dropbox usa HTTPS (TLS). Este servidor solo acepta HTTPS e indica a los navegadores que nunca usen HTTP sin cifrar (HSTS).</li>
 		<li><strong>Minimización de datos:</strong> solo se pide acceso de solo lectura. Este servidor nunca pide tus archivos ni sus detalles, y no tiene ninguna base de datos de usuarios, cuentas ni datos de usuario de Google.</li>
 		<li><strong>Manejo de tokens:</strong> en este servidor, los tokens solo existen en memoria, como máximo 3 minutos durante el inicio de sesión o mientras dura una solicitud de actualización. Nunca se escriben en disco, en una base de datos ni en registros. En tu dispositivo Kodi, los complementos quitan los tokens de todo lo que escriben en el registro de Kodi.</li>
 		<li><strong>Control de acceso:</strong> un código de inicio de sesión solo se puede usar desde la misma red que el dispositivo Kodi que lo pidió, debe terminarse en el mismo navegador que lo empezó (una cookie de un solo uso y PKCE), y los tokens resultantes solo se pueden recoger con un secreto aleatorio que solo conoce ese dispositivo Kodi. Los códigos caducan a los 3 minutos y funcionan una sola vez. Las solicitudes tienen límites de frecuencia para evitar abusos.</li>
@@ -166,8 +177,9 @@ export const es: Messages = {
 		<li>
 			<strong>Revocar el acceso:</strong> puedes revocar el acceso del complemento en cualquier momento en los
 			<a href="https://myaccount.google.com/permissions">permisos de tu cuenta de Google</a>, tu
-			<a href="https://account.live.com/consent/Manage">cuenta personal de Microsoft</a> o tu
-			<a href="https://myapplications.microsoft.com/">cuenta profesional o educativa de Microsoft</a>. Los tokens dejan de funcionar de inmediato.
+			<a href="https://account.live.com/consent/Manage">cuenta personal de Microsoft</a>, tu
+			<a href="https://myapplications.microsoft.com/">cuenta profesional o educativa de Microsoft</a> o las
+			<a href="https://www.dropbox.com/account/connected_apps">aplicaciones conectadas de tu cuenta de Dropbox</a>. Los tokens dejan de funcionar de inmediato.
 		</li>
 		<li>Como este servidor no guarda datos sobre ti, no hay nada que eliminar en el servidor. Si tienes preguntas sobre tus datos, usa el contacto de abajo.</li>
 	</ul>

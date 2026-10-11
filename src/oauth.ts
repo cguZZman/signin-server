@@ -21,6 +21,13 @@ const PROVIDERS: Record<string, ProviderConfig> = {
 			response_mode: 'form_post',
 		},
 	},
+	dropbox: {
+		authorize: {
+			scope: 'account_info.read files.metadata.read files.content.read sharing.read',
+			// Issues a refresh token. Dropbox's refresh answers don't include a new one: the add-on keeps the first.
+			token_access_type: 'offline',
+		},
+	},
 };
 
 export function isProvider(name: string | null): name is string {

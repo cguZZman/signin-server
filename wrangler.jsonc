@@ -31,6 +31,9 @@
 		"PROVIDER_ONEDRIVE_CLIENT_ID": "3631870c-f134-4a7a-a6be-24219608f288",
 		"PROVIDER_ONEDRIVE_URL_AUTHORIZE": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
 		"PROVIDER_ONEDRIVE_URL_TOKEN": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+		"PROVIDER_DROPBOX_CLIENT_ID": "3uewl96ns5fm02r",
+		"PROVIDER_DROPBOX_URL_AUTHORIZE": "https://www.dropbox.com/oauth2/authorize",
+		"PROVIDER_DROPBOX_URL_TOKEN": "https://api.dropboxapi.com/oauth2/token",
 		"FUNDING_URL": "",
 		"FUNDING_GOAL": "0",
 		"FUNDING_RAISED": "0"

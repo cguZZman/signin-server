@@ -2,7 +2,7 @@
 import type { ErrorMessage, Messages } from './i18n';
 
 export const SOURCE_URL = 'https://github.com/cguZZman/signin-server';
-// Not translated: it is the app's name, and must match the name on Google's and Microsoft's consent screens.
+// Not translated: it is the app's name, and must match the name on the providers' consent screens.
 const APP_NAME = 'Cloud Drive Sign-in for Kodi';
 
 /** Escapes text for HTML content and attribute values. */
@@ -39,7 +39,7 @@ function layout(t: Messages, title: string, state: State, content: string): stri
 	<meta charset="utf-8"/>
 	<meta name="viewport" content="width=device-width, initial-scale=1"/>
 	<meta name="color-scheme" content="light dark"/>
-	<meta name="description" content="Sign-in page of the open-source Google Drive and OneDrive add-ons for the Kodi media center."/>
+	<meta name="description" content="Sign-in page of the open-source Google Drive, OneDrive and Dropbox add-ons for the Kodi media center."/>
 	<title>${escape(title)} · ${APP_NAME}</title>
 	<link rel="icon" href="/favicon.ico"/>
 	<link rel="stylesheet" href="/css/app.css"/>

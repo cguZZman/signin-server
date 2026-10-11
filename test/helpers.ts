@@ -19,7 +19,7 @@ export function testEnv(overrides: Partial<Env> = {}): Env {
 		PROVIDER_ONEDRIVE_LEGACY_CLIENT_SECRET: 'onedrive-legacy-secret',
 	};
 	const settings = env as unknown as Record<string, string | undefined>;
-	for (const provider of ['googledrive', 'onedrive']) {
+	for (const provider of ['googledrive', 'onedrive', 'dropbox']) {
 		const prefix = `PROVIDER_${provider.toUpperCase()}`;
 		settings[`${prefix}_CLIENT_ID`] = `${provider}-client`;
 		settings[`${prefix}_CLIENT_SECRET`] = `${provider}-secret`;

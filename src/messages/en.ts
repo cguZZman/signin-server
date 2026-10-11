@@ -7,14 +7,14 @@ export const en: Messages = {
 	index: {
 		title: 'Enter your code',
 		heading: 'Connect Kodi to your cloud drive',
-		lead: "Enter the code shown on your TV. You'll then sign in with Google or Microsoft.",
+		lead: "Enter the code shown on your TV. You'll then sign in with Google, Microsoft or Dropbox.",
 		notice: 'Only enter a code shown by your own Kodi device, never one someone sent you.',
 		codeLabel: 'Code from your TV',
 		continue: 'Continue',
 		aboutSummary: 'What is this?',
-		about: (source) => `This page connects the <strong>Google Drive</strong> and <strong>OneDrive</strong> add-ons for
+		about: (source) => `This page connects the <strong>Google Drive</strong>, <strong>OneDrive</strong> and <strong>Dropbox</strong> add-ons for
 			<a href="https://kodi.tv/">Kodi</a>, the open-source media center, to your account, so you can play your files on your TV.
-			You sign in on Google's or Microsoft's own page; this site never asks for or sees your password, and the add-ons can only read your files.
+			You sign in on Google's, Microsoft's or Dropbox's own page; this site never asks for or sees your password, and the add-ons can only read your files.
 			It is an open-source project: <a href="${source}">source code</a>, <a href="/privacypolicy">privacy policy</a>.`,
 	},
 	help: {
@@ -55,24 +55,24 @@ export const en: Messages = {
 	footer: {
 		privacy: 'Privacy policy',
 		source: 'Source code',
-		disclaimer: 'Not affiliated with or endorsed by Team Kodi, Google or Microsoft.',
+		disclaimer: 'Not affiliated with or endorsed by Team Kodi, Google, Microsoft or Dropbox.',
 	},
 	privacy: {
 		title: 'Privacy policy',
 		body: (source) => `
 	<h1>Privacy policy</h1>
-	<p class="meta">Last updated: October 10, 2026</p>
+	<p class="meta">Last updated: October 11, 2026</p>
 
 	<p>
-		This policy covers the <strong>Google Drive</strong> and <strong>OneDrive</strong> add-ons for Kodi and this sign-in service.
+		This policy covers the <strong>Google Drive</strong>, <strong>OneDrive</strong> and <strong>Dropbox</strong> add-ons for Kodi and this sign-in service.
 		They are open-source projects developed and run by Carlos Guzman (cguZZman). They are not affiliated with or
-		endorsed by Team Kodi, Google or Microsoft.
+		endorsed by Team Kodi, Google, Microsoft or Dropbox.
 	</p>
 
 	<h2>In short</h2>
 	<ul>
 		<li>The add-ons only <strong>read</strong> your files so you can browse and play them in Kodi. They never change or delete anything.</li>
-		<li>Your files go directly between your Kodi device and Google or Microsoft. They never pass through this server.</li>
+		<li>Your files go directly between your Kodi device and Google, Microsoft or Dropbox. They never pass through this server.</li>
 		<li>This server only helps your Kodi device sign in. It keeps sign-in data in memory for at most 3 minutes and never stores it.</li>
 		<li>Nothing is sold, shared with third parties, or used for advertising.</li>
 	</ul>
@@ -94,16 +94,27 @@ export const en: Messages = {
 		<dt><code>offline_access</code></dt>
 		<dd>Stay signed in without asking you to sign in again every hour.</dd>
 	</dl>
+	<h3>Dropbox</h3>
+	<dl class="scopes">
+		<dt><code>account_info.read</code></dt>
+		<dd>Show your account name in the Kodi menu.</dd>
+		<dt><code>files.metadata.read</code></dt>
+		<dd>List and search your folders and files. Read-only access.</dd>
+		<dt><code>files.content.read</code></dt>
+		<dd>Play and show your files (videos, music, pictures and subtitles). Read-only access.</dd>
+		<dt><code>sharing.read</code></dt>
+		<dd>List the folders and files shared with you. Read-only access.</dd>
+	</dl>
 
 	<h2>How your data flows</h2>
 	<h3>Your files</h3>
 	<p>
-		File names, folders, thumbnails and file contents are requested by your Kodi device directly from Google or Microsoft and are
+		File names, folders, thumbnails and file contents are requested by your Kodi device directly from Google, Microsoft or Dropbox and are
 		only used to display and play them in Kodi. They never pass through this server.
 	</p>
 	<h3>Signing in</h3>
 	<p>
-		When you enter the code from your TV, this server sends you to Google or Microsoft to sign in. After you approve, the provider
+		When you enter the code from your TV, this server sends you to Google, Microsoft or Dropbox to sign in. After you approve, the provider
 		sends this server a one-time authorization code. The server exchanges it for access and refresh tokens and holds them
 		<strong>in memory</strong> until your Kodi device collects them, at most 3 minutes later. They are then deleted. Tokens
 		are never written to disk or to logs.
@@ -120,7 +131,7 @@ export const en: Messages = {
 	<h3>Staying signed in</h3>
 	<p>
 		About once an hour, your Kodi device sends its refresh token to this server. The server adds the application's credentials,
-		forwards the request to Google or Microsoft, and returns the new access token to your device. It does not keep or log the
+		forwards the request to Google, Microsoft or Dropbox, and returns the new access token to your device. It does not keep or log the
 		tokens.
 	</p>
 	<h3>Abuse protection</h3>
@@ -146,7 +157,7 @@ export const en: Messages = {
 	<h2>How your data is protected</h2>
 	<p>Google user data and sign-in tokens are sensitive, and are protected as follows:</p>
 	<ul>
-		<li><strong>Encryption in transit:</strong> all traffic between your browser, your Kodi device, this server, Google and Microsoft uses HTTPS (TLS). This server only accepts HTTPS and tells browsers to never use plain HTTP (HSTS).</li>
+		<li><strong>Encryption in transit:</strong> all traffic between your browser, your Kodi device, this server, Google, Microsoft and Dropbox uses HTTPS (TLS). This server only accepts HTTPS and tells browsers to never use plain HTTP (HSTS).</li>
 		<li><strong>Data minimization:</strong> only read-only access is requested. This server never requests your files or their details, and keeps no database of users, accounts or Google user data.</li>
 		<li><strong>Token handling:</strong> on this server, tokens exist only in memory, for at most 3 minutes during sign-in or for the duration of a refresh request. They are never written to disk, to a database or to logs. On your Kodi device, the add-ons remove tokens from everything they write to the Kodi log.</li>
 		<li><strong>Access control:</strong> a sign-in code can only be used from the same network as the Kodi device that requested it, must be finished in the same browser that started it (a one-time cookie and PKCE), and the resulting tokens can only be collected with a random secret known only to that Kodi device. Codes expire after 3 minutes and work once. Requests are rate-limited to prevent abuse.</li>
@@ -163,8 +174,9 @@ export const en: Messages = {
 		<li>
 			<strong>Revoking access:</strong> you can revoke the add-on's access at any time in your
 			<a href="https://myaccount.google.com/permissions">Google account permissions</a>,
-			<a href="https://account.live.com/consent/Manage">Microsoft personal account</a> or
-			<a href="https://myapplications.microsoft.com/">Microsoft work or school account</a>. The tokens stop working immediately.
+			<a href="https://account.live.com/consent/Manage">Microsoft personal account</a>,
+			<a href="https://myapplications.microsoft.com/">Microsoft work or school account</a> or
+			<a href="https://www.dropbox.com/account/connected_apps">Dropbox connected apps</a>. The tokens stop working immediately.
 		</li>
 		<li>Because this server keeps no data about you, there is nothing to delete on the server. If you have questions about your data, use the contact below.</li>
 	</ul>
