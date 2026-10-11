@@ -104,8 +104,6 @@ export const es: Messages = {
 		<dd>Listar tus carpetas y archivos, y buscar en ellos. Acceso de solo lectura.</dd>
 		<dt><code>files.content.read</code></dt>
 		<dd>Reproducir y mostrar tus archivos (videos, música, imágenes y subtítulos). Acceso de solo lectura.</dd>
-		<dt><code>sharing.read</code></dt>
-		<dd>Listar las carpetas y los archivos que otras personas compartieron contigo. Acceso de solo lectura.</dd>
 	</dl>
 
 	<h2>Cómo circulan tus datos</h2>

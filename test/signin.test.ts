@@ -39,7 +39,7 @@ function callback(method: string, state: string, code: string, browser: string |
 describe.each([
 	['googledrive', 'https://www.googleapis.com/auth/drive.readonly', 'GET'],
 	['onedrive', 'offline_access sites.read.all files.read.all user.read', 'POST'],
-	['dropbox', 'account_info.read files.metadata.read files.content.read sharing.read', 'GET'],
+	['dropbox', 'account_info.read files.metadata.read files.content.read', 'GET'],
 ])('sign-in with %s', (provider, scope, callbackMethod) => {
 	it('runs the whole flow', async () => {
 		const pin = (await (await server.post('/pin', { provider })).json()) as Record<string, string>;

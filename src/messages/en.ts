@@ -102,8 +102,6 @@ export const en: Messages = {
 		<dd>List and search your folders and files. Read-only access.</dd>
 		<dt><code>files.content.read</code></dt>
 		<dd>Play and show your files (videos, music, pictures and subtitles). Read-only access.</dd>
-		<dt><code>sharing.read</code></dt>
-		<dd>List the folders and files shared with you. Read-only access.</dd>
 	</dl>
 
 	<h2>How your data flows</h2>
