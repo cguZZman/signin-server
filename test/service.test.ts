@@ -25,6 +25,7 @@ describe('pages', () => {
 		expect(success.status).toBe(200);
 		const body = await success.text();
 		expect(body).toContain('signed in');
+		expect(body, 'a way back to enter another code').toContain('<a class="button secondary" href="/">Enter another code</a>');
 		expect(body).not.toContain('class="funding"');
 		const privacy = await (await server.get('/privacypolicy')).text();
 		expect(privacy).toContain('Limited Use');

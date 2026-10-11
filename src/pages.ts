@@ -173,6 +173,7 @@ export function successPage(funding: Funding | null): string {
 	</svg>
 	<h1>You're signed in</h1>
 	<p class="lead">Kodi will finish adding your account in a few seconds. You can close this page.</p>
+	<a class="button secondary" href="/">Enter another code</a>
 	${card}
 </div>`,
 	);
