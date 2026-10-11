@@ -27,7 +27,7 @@
 		"PROVIDER_GOOGLEDRIVE_CLIENT_ID": "",
 		"PROVIDER_GOOGLEDRIVE_URL_AUTHORIZE": "https://accounts.google.com/o/oauth2/v2/auth",
 		"PROVIDER_GOOGLEDRIVE_URL_TOKEN": "https://oauth2.googleapis.com/token",
-		"PROVIDER_ONEDRIVE_CLIENT_ID": "",
+		"PROVIDER_ONEDRIVE_CLIENT_ID": "3631870c-f134-4a7a-a6be-24219608f288",
 		"PROVIDER_ONEDRIVE_URL_AUTHORIZE": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
 		"PROVIDER_ONEDRIVE_URL_TOKEN": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
 		"FUNDING_URL": "",
