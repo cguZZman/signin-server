@@ -61,12 +61,17 @@ function table(title, rows, columns) {
 	}
 }
 
-/** Pivots rows of (day, key, n) into one row per day with a column per key. */
-function pivot(rows, keys) {
+/** Pivots rows of (day, a, b..., n) into one row per day with a column per key ("a b ..."). */
+function keyOf(row, fields) {
+	return fields.map((f) => row[f] || '-').join(' ');
+}
+
+function pivot(rows, keys, fields) {
 	const byDay = new Map();
 	for (const r of rows) {
 		const row = byDay.get(r.day) ?? { day: r.day };
-		row[r.key] = (row[r.key] ?? 0) + Number(r.n);
+		const key = keyOf(r, fields);
+		row[key] = (row[key] ?? 0) + Number(r.n);
 		byDay.set(r.day, row);
 	}
 	return [...byDay.values()].map((row) => Object.fromEntries([['day', row.day], ...keys.map((k) => [k, row[k] ?? 0])]));
@@ -74,10 +79,10 @@ function pivot(rows, keys) {
 
 const funnelKeys = ['pin created', 'signin_start redirected', 'signin completed', 'signin denied', 'collect delivered', 'collect not_found'];
 const funnel = await query(
-	`SELECT ${DAY} AS day, concat(blob1, ' ', blob4) AS key, ${COUNT} AS n FROM signin_usage
-	 WHERE ${SINCE} AND blob1 IN ('pin', 'signin_start', 'signin', 'collect') GROUP BY day, key ORDER BY day`,
+	`SELECT ${DAY} AS day, blob1 AS event, blob4 AS outcome, ${COUNT} AS n FROM signin_usage
+	 WHERE ${SINCE} AND blob1 IN ('pin', 'signin_start', 'signin', 'collect') GROUP BY day, event, outcome ORDER BY day`,
 );
-table(`Sign-ins, last ${days} days (all providers)`, pivot(funnel, funnelKeys), ['day', ...funnelKeys]);
+table(`Sign-ins, last ${days} days (all providers)`, pivot(funnel, funnelKeys, ['event', 'outcome']), ['day', ...funnelKeys]);
 
 table(
 	'Sign-ins by provider',
@@ -98,18 +103,20 @@ table(
 );
 
 const activeRows = await query(
-	`SELECT ${DAY} AS day, concat(blob6, ' ', blob2, ' ', blob3) AS key, ${COUNT} AS n FROM signin_usage
-	 WHERE ${SINCE} AND blob1 = 'active_account' GROUP BY day, key ORDER BY day`,
+	`SELECT ${DAY} AS day, blob6 AS source, blob2 AS provider, blob3 AS app, ${COUNT} AS n FROM signin_usage
+	 WHERE ${SINCE} AND blob1 = 'active_account' GROUP BY day, source, provider, app ORDER BY day`,
 );
-const activeKeys = [...new Set(activeRows.map((r) => r.key))].sort();
-table('Active accounts per day (source provider app; overcounted on days with a deploy or restart)', pivot(activeRows, activeKeys), ['day', ...activeKeys]);
+const activeFields = ['source', 'provider', 'app'];
+const activeKeys = [...new Set(activeRows.map((r) => keyOf(r, activeFields)))].sort();
+table('Active accounts per day (source provider app; overcounted on days with a deploy or restart)', pivot(activeRows, activeKeys, activeFields), ['day', ...activeKeys]);
 
 const refreshRows = await query(
-	`SELECT ${DAY} AS day, concat(blob6, ' ', blob4) AS key, ${COUNT} AS n FROM signin_usage
-	 WHERE ${SINCE} AND blob1 = 'refresh' GROUP BY day, key ORDER BY day`,
+	`SELECT ${DAY} AS day, blob6 AS source, blob4 AS outcome, ${COUNT} AS n FROM signin_usage
+	 WHERE ${SINCE} AND blob1 = 'refresh' GROUP BY day, source, outcome ORDER BY day`,
 );
-const refreshKeys = [...new Set(refreshRows.map((r) => r.key))].sort();
-table('Token refreshes per day (source outcome)', pivot(refreshRows, refreshKeys), ['day', ...refreshKeys]);
+const refreshFields = ['source', 'outcome'];
+const refreshKeys = [...new Set(refreshRows.map((r) => keyOf(r, refreshFields)))].sort();
+table('Token refreshes per day (source outcome)', pivot(refreshRows, refreshKeys, refreshFields), ['day', ...refreshKeys]);
 
 table(
 	'Refresh failures by error',

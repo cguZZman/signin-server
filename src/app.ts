@@ -138,10 +138,7 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 		try {
 			const refreshed = await refresh(env, provider, refreshToken);
 			track({ event: 'refresh', provider, app: refreshed.app, outcome: 'ok' });
-			// Daily active accounts: the sum of these per day. Only a count is recorded, never the hash.
-			if (tokenHash && (await store.firstToday(`${provider}:${tokenHash}`))) {
-				track({ event: 'active_account', provider, app: refreshed.app, outcome: 'ok' });
-			}
+			await countActive(store, track, provider, refreshed.app, tokenHash);
 			return json(refreshed.tokens);
 		} catch (e) {
 			track({ event: 'refresh', provider, outcome: 'failed', error: e instanceof TokenError ? (e.error ?? String(e.status)) : 'server_error' });
@@ -214,6 +211,20 @@ async function callback(env: Env, store: Store, t: Messages, track: Track, reque
 	}
 	page.headers.append('Set-Cookie', clearCookie);
 	return page;
+}
+
+/** Daily active accounts: the sum of these events per day. Only a count is recorded, never the hash. Never fails the request. */
+async function countActive(store: Store, track: Track, provider: string, app: string, tokenHash: string | null): Promise<void> {
+	if (!tokenHash) {
+		return;
+	}
+	try {
+		if (await store.firstToday(`${provider}:${tokenHash}`)) {
+			track({ event: 'active_account', provider, app, outcome: 'ok' });
+		}
+	} catch (e) {
+		console.error(`Active account not counted: ${e instanceof Error ? e.message : e}`);
+	}
 }
 
 function limits(env: Env, request: Request, path: string, client: string, tokenHash: string | null): Limit[] {
