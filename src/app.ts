@@ -141,7 +141,13 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 			await countActive(store, track, provider, refreshed.app, tokenHash);
 			return json(refreshed.tokens);
 		} catch (e) {
-			track({ event: 'refresh', provider, outcome: 'failed', error: e instanceof TokenError ? (e.error ?? String(e.status)) : 'server_error' });
+			track({
+				event: 'refresh',
+				provider,
+				app: e instanceof TokenError ? e.app : '',
+				outcome: 'failed',
+				error: e instanceof TokenError ? (e.error ?? String(e.status)) : 'server_error',
+			});
 			if (e instanceof TokenError && e.status >= 400 && e.status < 500) {
 				return json({ status: e.status, error: e.error ?? 'Token request failed' }, e.status);
 			}

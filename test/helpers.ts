@@ -30,9 +30,10 @@ export function testEnv(overrides: Partial<Env> = {}): Env {
 }
 
 /**
- * Stands in for the Google and Microsoft token endpoints. Answers with fake tokens, except a refresh_token
- * starting with "bad", which gets 400 invalid_grant, and refresh tokens that belong to the other app:
- * tokens starting with "legacy" only refresh with a legacy client ID, and the others only with a current one.
+ * Stands in for the Google and Microsoft token endpoints. Answers with fake tokens, except:
+ * - refresh tokens that belong to the other app get 401 unauthorized_client, as Google answers: tokens starting
+ *   with "legacy" only refresh with a legacy client ID, and the others only with a current one;
+ * - a refresh_token starting with "bad" or "legacy-bad" (revoked) gets 400 invalid_grant from its own app.
  */
 export class MockTokenEndpoint {
 	forms: Record<string, string>[] = [];
@@ -46,7 +47,10 @@ export class MockTokenEndpoint {
 			this.forms.push(form);
 			const refreshToken = form.refresh_token ?? '';
 			const otherApp = refreshToken !== '' && refreshToken.startsWith('legacy') !== (form.client_id ?? '').includes('-legacy-');
-			if (refreshToken.startsWith('bad') || otherApp || form.code === 'bad-code') {
+			if (otherApp) {
+				return Response.json({ error: 'unauthorized_client', error_description: 'Unauthorized' }, { status: 401 });
+			}
+			if (refreshToken.startsWith('bad') || refreshToken.startsWith('legacy-bad') || form.code === 'bad-code') {
 				return Response.json({ error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }, { status: 400 });
 			}
 			return Response.json({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600 });

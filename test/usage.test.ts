@@ -86,12 +86,14 @@ describe('usage events', () => {
 		await server.post('/refresh', { provider: 'googledrive', refresh_token: 'current-token' });
 		await server.post('/refresh', { provider: 'onedrive', refresh_token: 'legacy-token' });
 		await server.post('/refresh', { provider: 'onedrive', refresh_token: 'bad-token' });
+		await server.post('/refresh', { provider: 'onedrive', refresh_token: 'legacy-bad-token' });
 		expect(dataset.events('refresh').map((p) => [p.provider, p.app, p.outcome, p.error])).toEqual([
 			['onedrive', 'current', 'ok', ''],
 			['onedrive', 'current', 'ok', ''],
 			['googledrive', 'current', 'ok', ''],
 			['onedrive', 'legacy', 'ok', ''],
-			['onedrive', '', 'failed', 'invalid_grant'],
+			['onedrive', 'current', 'failed', 'invalid_grant'],
+			['onedrive', 'legacy', 'failed', 'invalid_grant'],
 		]);
 		expect(dataset.events('active_account').map((p) => [p.provider, p.app, p.count])).toEqual([
 			['onedrive', 'current', 1],

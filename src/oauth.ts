@@ -74,6 +74,8 @@ export class TokenError extends Error {
 		readonly status: number,
 		readonly error: string | undefined,
 		readonly description: string | undefined,
+		// The OAuth app whose token endpoint answered.
+		readonly app: 'current' | 'legacy' = 'current',
 	) {
 		super(`${error ?? status}: ${description ?? ''}`);
 	}
@@ -101,9 +103,11 @@ export async function refresh(env: Env, provider: string, refreshToken: string):
 			const tokens = await tokenRequest(env, provider, 'LEGACY_', params);
 			console.log(`Token request succeeded with the legacy app: provider=${provider} grant_type=refresh_token`);
 			return { tokens, app: 'legacy' };
-		} catch {
-			// Most likely a token of the current app that is no longer valid: report the current app's error.
-			throw e;
+		} catch (legacyError) {
+			// When the current app says the token was issued to another app (Google: unauthorized_client), it's a
+			// legacy token and the legacy app's answer says what's wrong (e.g. invalid_grant: revoked). Otherwise it's
+			// most likely a token of the current app that is no longer valid: report the current app's error.
+			throw e.error === 'unauthorized_client' && legacyError instanceof TokenError ? legacyError : e;
 		}
 	}
 }
@@ -138,7 +142,7 @@ async function tokenRequest(env: Env, provider: string, app: App, params: Record
 		`Token request failed: provider=${provider} app=${app ? 'legacy' : 'current'} grant_type=${params.grant_type} ` +
 			`status=${response.status} error=${code} description=${description}`,
 	);
-	throw new TokenError(response.status, code, description);
+	throw new TokenError(response.status, code, description, app ? 'legacy' : 'current');
 }
 
 function truncate(text: string): string {

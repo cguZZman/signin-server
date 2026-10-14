@@ -231,7 +231,7 @@ describe('refresh', () => {
 
 	it('only tries the current app when there is no legacy one', async () => {
 		vi.spyOn(console, 'warn').mockImplementation(() => {});
-		expect((await server.post('/refresh', { provider: 'googledrive', refresh_token: 'legacy-RT' })).status).toBe(400);
+		expect((await server.post('/refresh', { provider: 'googledrive', refresh_token: 'legacy-RT' })).status).toBe(401);
 		expect(tokens.forms.map((f) => f.client_id)).toEqual(['googledrive-client']);
 	});
 
@@ -240,7 +240,17 @@ describe('refresh', () => {
 		expect((await server.post('/refresh', { provider: 'onedrive', refresh_token: 'bad-token' })).status).toBe(400);
 		const logged = warn.mock.calls.join('\n');
 		expect(logged).toContain('provider=onedrive app=current grant_type=refresh_token status=400');
-		expect(logged).toContain('provider=onedrive app=legacy grant_type=refresh_token status=400');
+		expect(logged).toContain('provider=onedrive app=legacy grant_type=refresh_token status=401');
 		expect(logged).not.toContain('bad-token');
+	});
+
+	it("reports the legacy app's error for a revoked legacy token", async () => {
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const response = await server.post('/refresh', { provider: 'onedrive', refresh_token: 'legacy-bad-token' });
+		expect(response.status).toBe(400);
+		expect(await response.json()).toMatchObject({ error: 'invalid_grant' });
+		const logged = warn.mock.calls.join('\n');
+		expect(logged).toContain('provider=onedrive app=current grant_type=refresh_token status=401 error=unauthorized_client');
+		expect(logged).toContain('provider=onedrive app=legacy grant_type=refresh_token status=400 error=invalid_grant');
 	});
 });
