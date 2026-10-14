@@ -19,6 +19,13 @@ export interface Env {
 	// without them nothing is recorded. See src/usage.ts.
 	USAGE?: AnalyticsEngineDataset;
 	USAGE_REPORT_TOKEN?: string;
+	// The private /usage page: the Cloudflare Access application that protects it (team domain, e.g.
+	// myteam.cloudflareaccess.com, and the application's audience tag), and a read-only API token (Account
+	// Analytics: Read) for the account's Analytics Engine. The page answers 404 until all four are set.
+	ACCESS_TEAM_DOMAIN?: string;
+	ACCESS_AUD?: string;
+	ANALYTICS_ACCOUNT_ID?: string;
+	USAGE_API_TOKEN?: string;
 	STORE?: DurableObjectNamespace;
 	ASSETS?: Fetcher;
 }

@@ -1,18 +1,19 @@
 #!/usr/bin/env node
-// Prints the usage counts recorded by the Worker (src/usage.ts) for the last days.
+// Prints the usage report (the same as the /usage page) for the last 7, 30 or 90 days.
 //
 //   node scripts/usage-report.mjs [days]          (default 7)
 //
 // Needs a Cloudflare API token with Account > Account Analytics > Read, in CLOUDFLARE_API_TOKEN or in
 // ~/.config/cloudflare/usage-token (chmod 600), and the account ID in CLOUDFLARE_ACCOUNT_ID or in
-// ~/.config/cloudflare/account-id. Counts are sampling-aware: SUM(_sample_interval * double1).
+// ~/.config/cloudflare/account-id. Node 22.18 or later (it loads src/report.ts directly).
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { format, loadReport, PERIODS, sqlApi } from '../src/report.ts';
 
 const days = Number.parseInt(process.argv[2] ?? '7', 10);
-if (!Number.isInteger(days) || days < 1 || days > 92) {
-	console.error('Usage: node scripts/usage-report.mjs [days, 1-92]');
+if (!PERIODS.includes(days)) {
+	console.error(`Usage: node scripts/usage-report.mjs [${PERIODS.join('|')}]`);
 	process.exit(2);
 }
 const setting = (env, file) => {
@@ -29,126 +30,33 @@ if (!token || !account) {
 	process.exit(2);
 }
 
-const COUNT = 'SUM(_sample_interval * double1)';
-const SINCE = `timestamp > NOW() - INTERVAL '${days}' DAY`;
-const DAY = "formatDateTime(timestamp, '%Y-%m-%d')";
-
-async function query(sql) {
-	const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/analytics_engine/sql`, {
-		method: 'POST',
-		headers: { Authorization: `Bearer ${token}` },
-		body: `${sql} FORMAT JSON`,
-	});
-	const text = await response.text();
-	if (!response.ok) {
-		throw new Error(`${response.status}: ${text.slice(0, 500)}`);
-	}
-	return JSON.parse(text).data ?? [];
-}
-
-function table(title, rows, columns) {
+function table(title, columns, rows) {
 	console.log(`\n${title}`);
 	if (rows.length === 0) {
 		console.log('  (none)');
 		return;
 	}
-	const cells = rows.map((row) => columns.map((c) => (typeof row[c] === 'number' ? String(Math.round(row[c])) : String(row[c] ?? ''))));
+	const cells = rows.map((row) => row.map((c) => (typeof c === 'number' ? format(c) : String(c))));
 	const widths = columns.map((c, i) => Math.max(c.length, ...cells.map((r) => r[i].length)));
-	const line = (values) => `  ${values.map((v, i) => v.padEnd(widths[i])).join('  ')}`.trimEnd();
+	const line = (values) => `  ${values.map((v, i) => (i > 0 && /^[\d,]+$/.test(v) ? v.padStart(widths[i]) : v.padEnd(widths[i]))).join('  ')}`.trimEnd();
 	console.log(line(columns));
 	for (const r of cells) {
 		console.log(line(r));
 	}
 }
 
-/** Pivots rows of (day, a, b..., n) into one row per day with a column per key ("a b ..."). */
-function keyOf(row, fields) {
-	return fields.map((f) => row[f] || '-').join(' ');
+const report = await loadReport(sqlApi(account, token), days);
+console.log(`Usage, last ${days} days (UTC)\n`);
+for (const tile of report.tiles) {
+	console.log(`  ${tile.label}: ${tile.value}  (${tile.detail})`);
 }
-
-function pivot(rows, keys, fields) {
-	const byDay = new Map();
-	for (const r of rows) {
-		const row = byDay.get(r.day) ?? { day: r.day };
-		const key = keyOf(r, fields);
-		row[key] = (row[key] ?? 0) + Number(r.n);
-		byDay.set(r.day, row);
-	}
-	return [...byDay.values()].map((row) => Object.fromEntries([['day', row.day], ...keys.map((k) => [k, row[k] ?? 0])]));
+for (const chart of report.charts) {
+	// Days with no counts at all are left out.
+	const rows = report.days
+		.map((day, i) => [day, ...chart.series.map((s) => s.values[i] ?? 0)])
+		.filter((row) => row.slice(1).some((v) => v > 0));
+	table(chart.title, ['Day', ...chart.series.map((s) => s.name)], rows);
 }
-
-const funnelKeys = ['pin created', 'signin_start redirected', 'signin completed', 'signin denied', 'collect delivered', 'collect not_found'];
-const funnel = await query(
-	`SELECT ${DAY} AS day, blob1 AS event, blob4 AS outcome, ${COUNT} AS n FROM signin_usage
-	 WHERE ${SINCE} AND blob1 IN ('pin', 'signin_start', 'signin', 'collect') GROUP BY day, event, outcome ORDER BY day`,
-);
-table(`Sign-ins, last ${days} days (all providers)`, pivot(funnel, funnelKeys, ['event', 'outcome']), ['day', ...funnelKeys]);
-
-table(
-	'Sign-ins by provider',
-	await query(
-		`SELECT blob2 AS provider, blob1 AS event, blob4 AS outcome, ${COUNT} AS n FROM signin_usage
-		 WHERE ${SINCE} AND blob1 IN ('pin', 'signin') AND blob2 != '' GROUP BY provider, event, outcome ORDER BY provider, event, n DESC`,
-	),
-	['provider', 'event', 'outcome', 'n'],
-);
-
-table(
-	'Other sign-in failures (no provider known)',
-	await query(
-		`SELECT blob1 AS event, blob4 AS outcome, blob5 AS error, ${COUNT} AS n FROM signin_usage
-		 WHERE ${SINCE} AND blob1 IN ('signin', 'signin_start') AND blob2 = '' GROUP BY event, outcome, error ORDER BY n DESC`,
-	),
-	['event', 'outcome', 'error', 'n'],
-);
-
-const activeRows = await query(
-	`SELECT ${DAY} AS day, blob6 AS source, blob2 AS provider, blob3 AS app, ${COUNT} AS n FROM signin_usage
-	 WHERE ${SINCE} AND blob1 = 'active_account' GROUP BY day, source, provider, app ORDER BY day`,
-);
-const activeFields = ['source', 'provider', 'app'];
-const activeKeys = [...new Set(activeRows.map((r) => keyOf(r, activeFields)))].sort();
-table('Active accounts per day (source provider app; overcounted on days with a deploy or restart)', pivot(activeRows, activeKeys, activeFields), ['day', ...activeKeys]);
-
-const refreshRows = await query(
-	`SELECT ${DAY} AS day, blob6 AS source, blob4 AS outcome, ${COUNT} AS n FROM signin_usage
-	 WHERE ${SINCE} AND blob1 = 'refresh' GROUP BY day, source, outcome ORDER BY day`,
-);
-const refreshFields = ['source', 'outcome'];
-const refreshKeys = [...new Set(refreshRows.map((r) => keyOf(r, refreshFields)))].sort();
-table('Token refreshes per day (source outcome)', pivot(refreshRows, refreshKeys, refreshFields), ['day', ...refreshKeys]);
-
-table(
-	'Refresh failures by error',
-	await query(
-		`SELECT blob6 AS source, blob2 AS provider, blob5 AS error, ${COUNT} AS n FROM signin_usage
-		 WHERE ${SINCE} AND blob1 = 'refresh' AND blob4 = 'failed' GROUP BY source, provider, error ORDER BY n DESC LIMIT 15`,
-	),
-	['source', 'provider', 'error', 'n'],
-);
-
-table(
-	'Kodi clients by version (refreshes and sign-ins)',
-	await query(
-		`SELECT blob9 AS addon, blob10 AS addon_version, blob11 AS common, blob12 AS kodi, ${COUNT} AS n FROM signin_usage
-		 WHERE ${SINCE} AND blob8 = 'kodi' GROUP BY addon, addon_version, common, kodi ORDER BY n DESC LIMIT 20`,
-	),
-	['addon', 'addon_version', 'common', 'kodi', 'n'],
-);
-
-table(
-	'Countries (Kodi requests)',
-	await query(
-		`SELECT blob7 AS country, ${COUNT} AS n FROM signin_usage
-		 WHERE ${SINCE} AND blob8 = 'kodi' GROUP BY country ORDER BY n DESC LIMIT 15`,
-	),
-	['country', 'n'],
-);
-
-table(
-	'Rate limits hit',
-	await query(
-		`SELECT blob5 AS limit_name, ${COUNT} AS n FROM signin_usage WHERE ${SINCE} AND blob1 = 'rate_limited' GROUP BY limit_name ORDER BY n DESC`,
-	),
-	['limit_name', 'n'],
-);
+for (const t of report.tables) {
+	table(t.title, t.columns, t.rows);
+}

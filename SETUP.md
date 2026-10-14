@@ -127,7 +127,15 @@ echo <account ID> > ~/.config/cloudflare/account-id
 node scripts/usage-report.mjs 7
 ```
 
-An older sign-in server can send hourly summaries to `POST /usage/report` (as drive-login does). Set the same random token on both:
+The same report is a private page at `/usage` (charts and tables, last 7, 30 or 90 days), behind [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/applications/configure-apps/self-hosted-public-app/):
+
+1. In **Zero Trust → Access → Applications**, add a **Self-hosted** application for your domain with path `usage`, and a policy that allows only your email (one-time PIN login).
+2. Put the team domain (`<team>.cloudflareaccess.com`, under **Settings → Custom pages** or in the login URL) and the application's **Audience (AUD) tag** in `wrangler.jsonc` (`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`), with your account ID in `ANALYTICS_ACCOUNT_ID`.
+3. Give the Worker a read-only token: `npx wrangler secret put USAGE_API_TOKEN` (Account Analytics: Read).
+
+The Worker also checks the Access login token itself, so the page stays closed if the Access application is removed. Until all four are set, `/usage` answers 404.
+
+An older sign-in server can send hourly summaries to `POST /ingest/usage` (as drive-login does). Set the same random token on both:
 
 ```bash
 npx wrangler secret put USAGE_REPORT_TOKEN
@@ -169,4 +177,4 @@ The page language follows the browser's `Accept-Language` (English, Spanish or P
 | `GET /`, `POST /authorize`, `GET /signin/{code}` | Browser | Enter the code (form or QR link) and go to the provider |
 | `GET` or `POST /callback` | Provider | Return from the sign-in |
 | `GET /privacypolicy` | Browser | Privacy policy |
-| `POST /usage/report` | drive-login | Usage summaries from the older sign-in server (bearer token) |
+| `POST /ingest/usage` | drive-login | Usage summaries from the older sign-in server (bearer token) |

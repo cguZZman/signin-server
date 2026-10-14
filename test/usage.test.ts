@@ -145,7 +145,7 @@ describe('client info', () => {
 
 describe('drive-login summaries', () => {
 	const report = (body: unknown, token = 'report-token') =>
-		server.request('/usage/report', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+		server.request('/ingest/usage', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
 	it('are written with source heroku', async () => {
 		const response = await report({
@@ -172,6 +172,6 @@ describe('drive-login summaries', () => {
 	it('reject bad bodies', async () => {
 		expect((await report({ events: [] })).status).toBe(400);
 		expect((await report({ events: Array(201).fill({ event: 'refresh', outcome: 'ok', count: 1 }) })).status).toBe(400);
-		expect((await server.request('/usage/report', { method: 'POST', headers: { Authorization: 'Bearer report-token' }, body: 'nope' })).status).toBe(400);
+		expect((await server.request('/ingest/usage', { method: 'POST', headers: { Authorization: 'Bearer report-token' }, body: 'nope' })).status).toBe(400);
 	});
 });

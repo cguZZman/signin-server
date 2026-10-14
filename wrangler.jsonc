@@ -36,6 +36,10 @@
 		"PROVIDER_DROPBOX_CLIENT_ID": "3uewl96ns5fm02r",
 		"PROVIDER_DROPBOX_URL_AUTHORIZE": "https://www.dropbox.com/oauth2/authorize",
 		"PROVIDER_DROPBOX_URL_TOKEN": "https://api.dropboxapi.com/oauth2/token",
+		"ANALYTICS_ACCOUNT_ID": "08afddbf5c435f33adc96db103108e10",
+		// The Access application protecting /usage (see SETUP.md). Empty: the page answers 404.
+		"ACCESS_TEAM_DOMAIN": "",
+		"ACCESS_AUD": "",
 		"FUNDING_URL": "",
 		"FUNDING_GOAL": "0",
 		"FUNDING_RAISED": "0"

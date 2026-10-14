@@ -1,0 +1,294 @@
+/* The private /usage page (src/dashboard.ts). Builds on app.css (tokens, base). Series colors: the validated
+   categorical order (blue, orange, aqua, yellow, magenta), stepped separately for the light and dark surfaces. */
+.usage {
+	--series-1: #2a78d6;
+	--series-2: #eb6834;
+	--series-3: #1baf7a;
+	--series-4: #eda100;
+	--series-5: #e87ba4;
+	--grid: #e8ebf1;
+	--axis: #c3c8d2;
+	--tick: #6b7385;
+}
+@media (prefers-color-scheme: dark) {
+	.usage {
+		--series-1: #3987e5;
+		--series-2: #d95926;
+		--series-3: #199e70;
+		--series-4: #c98500;
+		--series-5: #d55181;
+		--grid: #222c40;
+		--axis: #34405a;
+		--tick: #8d97ab;
+	}
+}
+
+.dash {
+	max-width: 1040px;
+	margin: 0 auto;
+	padding: 24px 16px 40px;
+}
+.dash h1 {
+	margin: 0 0 4px;
+	font-size: 1.6rem;
+}
+.dash h2 {
+	margin: 0 0 4px;
+	font-size: 1.05rem;
+}
+.muted {
+	color: var(--muted);
+	margin: 0 0 12px;
+	font-size: 0.9rem;
+}
+.dash-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 12px 24px;
+	margin-bottom: 20px;
+}
+.dash-header .muted {
+	margin: 0;
+}
+
+/* Period filter: one row, above everything it filters. */
+.periods {
+	display: inline-flex;
+	padding: 3px;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+}
+.periods a {
+	padding: 6px 12px;
+	border-radius: 7px;
+	color: var(--muted);
+	font-size: 0.9rem;
+	text-decoration: none;
+}
+.periods a:hover {
+	color: var(--text);
+	background: var(--accent-soft);
+}
+.periods a[aria-current="page"] {
+	color: var(--text);
+	font-weight: 600;
+	background: var(--accent-soft);
+}
+
+.panel {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	padding: 18px 18px 14px;
+	margin-bottom: 16px;
+}
+
+/* Stat tiles */
+.tiles {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+	gap: 12px;
+	margin-bottom: 16px;
+}
+.tile {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	padding: 14px 16px;
+}
+.tile-label {
+	color: var(--muted);
+	font-size: 0.85rem;
+}
+.tile-value {
+	font-size: 1.9rem;
+	font-weight: 650;
+	line-height: 1.25;
+}
+.tile-detail {
+	color: var(--muted);
+	font-size: 0.8rem;
+}
+
+/* Charts */
+.legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 16px;
+	margin: 0 0 8px;
+	padding: 0;
+	list-style: none;
+	font-size: 0.85rem;
+}
+.legend li {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+.key {
+	width: 14px;
+	height: 14px;
+}
+.plot {
+	position: relative;
+}
+.plot svg {
+	display: block;
+	width: 100%;
+	height: auto;
+	overflow: visible;
+}
+.grid {
+	stroke: var(--grid);
+	stroke-width: 1;
+}
+.axis {
+	stroke: var(--axis);
+	stroke-width: 1;
+}
+.tick {
+	fill: var(--tick);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+.mark.s1 { fill: var(--series-1); }
+.mark.s2 { fill: var(--series-2); }
+.mark.s3 { fill: var(--series-3); }
+.mark.s4 { fill: var(--series-4); }
+.mark.s5 { fill: var(--series-5); }
+.line {
+	fill: none;
+	stroke-width: 2;
+	stroke-linejoin: round;
+	stroke-linecap: round;
+}
+.line.s1 { stroke: var(--series-1); }
+.line.s2 { stroke: var(--series-2); }
+.line.s3 { stroke: var(--series-3); }
+.line.s4 { stroke: var(--series-4); }
+.line.s5 { stroke: var(--series-5); }
+/* End-dots: series fill with a 2px ring in the surface color. */
+.dot {
+	stroke: var(--surface);
+	stroke-width: 2;
+}
+.dot.s1 { fill: var(--series-1); }
+.dot.s2 { fill: var(--series-2); }
+.dot.s3 { fill: var(--series-3); }
+.dot.s4 { fill: var(--series-4); }
+.dot.s5 { fill: var(--series-5); }
+.crosshair {
+	stroke: var(--axis);
+	stroke-width: 1;
+	pointer-events: none;
+}
+.hit {
+	fill: transparent;
+	cursor: crosshair;
+}
+.hit:focus {
+	outline: none;
+}
+.hit:focus-visible {
+	fill: var(--accent-soft);
+	fill-opacity: 0.5;
+}
+
+.tooltip {
+	position: absolute;
+	top: 0;
+	z-index: 1;
+	min-width: 150px;
+	padding: 8px 10px;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	box-shadow: var(--shadow);
+	font-size: 0.85rem;
+	pointer-events: none;
+}
+.tooltip-day {
+	margin-bottom: 4px;
+	color: var(--muted);
+}
+.tooltip-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	white-space: nowrap;
+}
+.tooltip-row strong {
+	min-width: 2.5em;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+.tooltip-row span {
+	color: var(--muted);
+}
+.tooltip-key {
+	width: 12px;
+	height: 2px;
+	border-radius: 1px;
+	flex: none;
+}
+.tooltip-key.s1 { background: var(--series-1); }
+.tooltip-key.s2 { background: var(--series-2); }
+.tooltip-key.s3 { background: var(--series-3); }
+.tooltip-key.s4 { background: var(--series-4); }
+.tooltip-key.s5 { background: var(--series-5); }
+
+/* Tables */
+.table-view {
+	margin-top: 8px;
+}
+.table-view summary {
+	color: var(--accent);
+	font-size: 0.85rem;
+	cursor: pointer;
+}
+.table-view .table-scroll {
+	max-height: 320px;
+	margin-top: 8px;
+}
+.tables {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+	gap: 0 16px;
+}
+.tables .wide {
+	grid-column: 1 / -1;
+}
+/* Grid items may shrink below their content: wide tables scroll inside their panel instead of widening the page. */
+.tiles > *,
+.tables > * {
+	min-width: 0;
+}
+.table-scroll {
+	overflow: auto;
+}
+.dash table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.875rem;
+}
+.dash th,
+.dash td {
+	padding: 6px 8px;
+	border-bottom: 1px solid var(--border);
+	text-align: left;
+	white-space: nowrap;
+}
+.dash th {
+	color: var(--muted);
+	font-weight: 600;
+	position: sticky;
+	top: 0;
+	background: var(--surface);
+}
+.dash .num {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}

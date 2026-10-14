@@ -1,7 +1,10 @@
 import type { Env, Store } from './env';
 import { type Messages, messages, negotiate } from './i18n';
 import { authorizeUrl, exchangeCode, isProvider, refresh, TokenError } from './oauth';
+import { accessUser } from './access';
+import { usageErrorPage, usagePage } from './dashboard';
 import { failurePage, indexPage, notFoundPage, privacyPage, successPage, tooManyPage } from './pages';
+import { loadReport, PERIODS, sqlApi } from './report';
 import { ipv6Groups, type Limit } from './state';
 import { clientInfo, ingest, record, type UsageEvent } from './usage';
 
@@ -68,8 +71,11 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 
 	const client = clientAddress(request);
 	const path = url.pathname;
-	if (path === '/usage/report' && request.method === 'POST') {
+	if (path === '/ingest/usage' && request.method === 'POST') {
 		return ingest(env, request);
+	}
+	if (path === '/usage' && read) {
+		return usage(env, request, t);
 	}
 	const country = (request as { cf?: { country?: string } }).cf?.country ?? '';
 	const agent = clientInfo(request.headers.get('User-Agent'), request.headers.get('addon'));
@@ -158,6 +164,27 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 		return new Response(client, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 	}
 	return new Response(notFoundPage(t), { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+}
+
+/** The private usage page, for the Cloudflare Access application's users only. */
+async function usage(env: Env, request: Request, t: Messages): Promise<Response> {
+	if (!env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD || !env.ANALYTICS_ACCOUNT_ID || !env.USAGE_API_TOKEN) {
+		return new Response(notFoundPage(t), { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+	}
+	const user = await accessUser(request, env);
+	if (user === null) {
+		return new Response('Forbidden', { status: 403, headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' } });
+	}
+	const requested = number(new URL(request.url).searchParams.get('days') ?? undefined, 7);
+	const period = PERIODS.includes(requested) ? requested : 7;
+	let body: string;
+	try {
+		body = usagePage(await loadReport(sqlApi(env.ANALYTICS_ACCOUNT_ID, env.USAGE_API_TOKEN), period), period, user);
+	} catch (e) {
+		console.error(`Usage page: ${e instanceof Error ? e.message : e}`);
+		body = usageErrorPage(period, user, 'Analytics Engine did not answer. Try again in a minute.');
+	}
+	return new Response(body, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
 }
 
 /** Sends the browser to the provider when the code exists and was created from this network. */
