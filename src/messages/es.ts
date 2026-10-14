@@ -62,7 +62,7 @@ export const es: Messages = {
 		title: 'Política de privacidad',
 		body: (source) => `
 	<h1>Política de privacidad</h1>
-	<p class="meta">Última actualización: 11 de octubre de 2026</p>
+	<p class="meta">Última actualización: 14 de octubre de 2026</p>
 	<p class="meta">Esta es una traducción. Si hay alguna diferencia, prevalece la <a href="/privacypolicy?lang=en">versión original en inglés</a>.</p>
 
 	<p>
@@ -146,6 +146,17 @@ export const es: Messages = {
 		están desactivados para este servicio: el único registro que guarda son sus propios mensajes de error (por ejemplo, que falló una
 		solicitud de token y el código de error del proveedor), que nunca contienen tokens ni direcciones IP, y que Cloudflare elimina a los
 		pocos días.
+	</p>
+
+	<h3>Estadísticas de uso</h3>
+	<p>
+		Para saber cómo se usa el servicio, el servidor registra conteos anónimos en Cloudflare Workers Analytics Engine. Por ejemplo:
+		que se completó un inicio de sesión con Google Drive, que una renovación de token funcionó o falló (con el código de error del
+		proveedor), el país de la solicitud según Cloudflare, y las versiones del complemento, de Kodi y de Python que informa tu
+		dispositivo Kodi. Para contar cuántas cuentas se usan cada día, el servidor recuerda en memoria, solo durante ese día, un hash
+		de un solo sentido de cada token de renovación que ya vio; solo se registra el número de cuentas. Estos registros nunca
+		contienen direcciones IP, tokens, nombres de cuenta, información de archivos ni nada que te identifique a ti o a tu cuenta, y se
+		eliminan después de tres meses.
 	</p>
 
 	<h2>Qué se guarda en tu dispositivo Kodi</h2>

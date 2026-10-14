@@ -114,6 +114,25 @@ npx wrangler deploy
 
 Open `https://login.example.com`. The Worker logs only its own warnings (no tokens, no IP addresses); see them under **Workers & Pages → your Worker → Logs**.
 
+### Usage statistics (optional)
+
+The Worker counts sign-ins, refreshes (and which app answered), daily active accounts, errors, countries and the add-on and Kodi versions in [Workers Analytics Engine](https://developers.cloudflare.com/analytics/analytics-engine/) (dataset `signin_usage`, free up to 100,000 events a day, kept three months). Nothing identifying is recorded: see `src/usage.ts` and the privacy policy. Remove the `analytics_engine_datasets` entry from `wrangler.jsonc` to turn it off.
+
+To read the counts, create an API token under **My Profile → API Tokens** with **Account → Account Analytics → Read**, and run:
+
+```bash
+mkdir -p ~/.config/cloudflare && chmod 700 ~/.config/cloudflare
+(umask 077; read -rsp 'Token: ' t && echo "$t" > ~/.config/cloudflare/usage-token)
+echo <account ID> > ~/.config/cloudflare/account-id
+node scripts/usage-report.mjs 7
+```
+
+An older sign-in server can send hourly summaries to `POST /usage/report` (as drive-login does). Set the same random token on both:
+
+```bash
+npx wrangler secret put USAGE_REPORT_TOKEN
+```
+
 ## 5. Run it locally
 
 Useful to try your OAuth apps before deploying. Register `http://localhost:8787/callback` as an additional redirect URI with each provider (both allow plain HTTP for `localhost`), copy `.dev.vars.example` to `.dev.vars`, fill in the client IDs and secrets, and run:
@@ -150,3 +169,4 @@ The page language follows the browser's `Accept-Language` (English, Spanish or P
 | `GET /`, `POST /authorize`, `GET /signin/{code}` | Browser | Enter the code (form or QR link) and go to the provider |
 | `GET` or `POST /callback` | Provider | Return from the sign-in |
 | `GET /privacypolicy` | Browser | Privacy policy |
+| `POST /usage/report` | drive-login | Usage summaries from the older sign-in server (bearer token) |

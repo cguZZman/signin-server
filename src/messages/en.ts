@@ -61,7 +61,7 @@ export const en: Messages = {
 		title: 'Privacy policy',
 		body: (source) => `
 	<h1>Privacy policy</h1>
-	<p class="meta">Last updated: October 11, 2026</p>
+	<p class="meta">Last updated: October 14, 2026</p>
 
 	<p>
 		This policy covers the <strong>Google Drive</strong>, <strong>OneDrive</strong> and <strong>Dropbox</strong> add-ons for Kodi and this sign-in service.
@@ -143,6 +143,17 @@ export const en: Messages = {
 		it, under the <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare privacy policy</a>. Request logs are turned
 		off for this service: the only log it keeps is its own error messages (for example, that a token request failed and the
 		provider's error code), which never contain tokens or IP addresses and are deleted by Cloudflare after a few days.
+	</p>
+
+	<h3>Usage statistics</h3>
+	<p>
+		To know how the service is used, the server records anonymous counts in Cloudflare Workers Analytics Engine. For example: that
+		a sign-in with Google Drive was completed, that a token refresh succeeded or failed (with the provider's error code), the
+		country of the request as determined by Cloudflare, and the add-on, Kodi and Python versions your Kodi device reports. To
+		count how many accounts are active each day, the server remembers in memory, for that day only, a one-way hash of each
+		refresh token it has already seen; only the number of accounts is recorded. These records never contain IP addresses,
+		tokens, account names, file information or anything else that identifies you or your account, and are deleted after three
+		months.
 	</p>
 
 	<h2>What is stored on your Kodi device</h2>

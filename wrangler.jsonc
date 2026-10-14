@@ -18,6 +18,8 @@
 	},
 	// SQLite-backed class (required on the free plan). The store keeps everything in memory and never writes to it.
 	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["SigninStore"] }],
+	// Anonymous usage counts (src/usage.ts). Secrets USAGE_HASH_KEY and USAGE_REPORT_TOKEN: see SETUP.md.
+	"analytics_engine_datasets": [{ "binding": "USAGE", "dataset": "signin_usage" }],
 	"observability": {
 		"enabled": true,
 		// Request logs would record URLs and headers; only the service's own messages (no tokens, no IPs) are kept.

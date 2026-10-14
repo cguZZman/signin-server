@@ -56,6 +56,10 @@ export class SigninState {
 	// Fixed windows: a counter expires one window after its first request.
 	private readonly counters = new Map<string, { count: number; expires: number }>();
 	private nextSweep = 0;
+	// Accounts (hashes of refresh tokens) that refreshed today, UTC: only to count each account once a day.
+	// Memory only, emptied when the day changes.
+	private activeDay = '';
+	private readonly active = new Set<string>();
 
 	constructor(private readonly now: () => number = Date.now) {}
 
@@ -119,6 +123,20 @@ export class SigninState {
 		}
 		this.pins.delete(stored.pin);
 		return { status: 200, tokens: stored.tokens };
+	}
+
+	/** True the first time the key (a provider and token hash) is seen in the current UTC day. */
+	firstToday(key: string): boolean {
+		const day = new Date(this.now()).toISOString().slice(0, 10);
+		if (day !== this.activeDay) {
+			this.activeDay = day;
+			this.active.clear();
+		}
+		if (this.active.has(key)) {
+			return false;
+		}
+		this.active.add(key);
+		return true;
 	}
 
 	/** Counts a request against each limit. Returns the name of the first exceeded limit, or null. */

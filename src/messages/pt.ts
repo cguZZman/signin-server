@@ -62,7 +62,7 @@ export const pt: Messages = {
 		title: 'Política de privacidade',
 		body: (source) => `
 	<h1>Política de privacidade</h1>
-	<p class="meta">Última atualização: 11 de outubro de 2026</p>
+	<p class="meta">Última atualização: 14 de outubro de 2026</p>
 	<p class="meta">Esta é uma tradução. Se houver alguma diferença, vale a <a href="/privacypolicy?lang=en">versão original em inglês</a>.</p>
 
 	<p>
@@ -146,6 +146,17 @@ export const pt: Messages = {
 		estão desativados para este serviço: o único log mantido são as próprias mensagens de erro do serviço (por exemplo, que uma
 		solicitação de token falhou e o código de erro do provedor), que nunca contêm tokens nem endereços IP e são excluídas pela
 		Cloudflare após alguns dias.
+	</p>
+
+	<h3>Estatísticas de uso</h3>
+	<p>
+		Para saber como o serviço é usado, o servidor registra contagens anônimas no Cloudflare Workers Analytics Engine. Por exemplo:
+		que um login com o Google Drive foi concluído, que uma renovação de token funcionou ou falhou (com o código de erro do
+		provedor), o país da solicitação segundo a Cloudflare, e as versões do complemento, do Kodi e do Python informadas pelo seu
+		dispositivo Kodi. Para contar quantas contas são usadas por dia, o servidor guarda na memória, somente durante aquele dia, um
+		hash irreversível de cada token de renovação que já viu; somente o número de contas é registrado. Esses registros nunca contêm
+		endereços IP, tokens, nomes de conta, informações de arquivos nem nada que identifique você ou sua conta, e são apagados após
+		três meses.
 	</p>
 
 	<h2>O que fica guardado no seu Kodi</h2>

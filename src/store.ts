@@ -29,6 +29,10 @@ export class SigninStore extends DurableObject<Env> {
 		return this.state.collect(pin, password, client);
 	}
 
+	firstToday(key: string) {
+		return this.state.firstToday(key);
+	}
+
 	acquire(limits: Limit[]) {
 		return this.state.acquire(limits);
 	}

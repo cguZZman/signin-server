@@ -15,6 +15,10 @@ export interface Env {
 	// PROVIDER_<NAME>_CLIENT_ID, _CLIENT_SECRET, _URL_AUTHORIZE, _URL_TOKEN, and optionally
 	// PROVIDER_<NAME>_LEGACY_CLIENT_ID and _LEGACY_CLIENT_SECRET, for NAME GOOGLEDRIVE and ONEDRIVE.
 	[name: `PROVIDER_${string}`]: string | undefined;
+	// Usage counts (Workers Analytics Engine), and the token drive-login sends its summaries with. Both optional:
+	// without them nothing is recorded. See src/usage.ts.
+	USAGE?: AnalyticsEngineDataset;
+	USAGE_REPORT_TOKEN?: string;
 	STORE?: DurableObjectNamespace;
 	ASSETS?: Fetcher;
 }
@@ -22,4 +26,4 @@ export interface Env {
 type Async<T> = { [K in keyof T]: T[K] extends (...args: infer A) => infer R ? (...args: A) => Promise<R> | R : never };
 
 /** SigninState's methods, called on the Durable Object in production or directly in tests. */
-export type Store = Async<Pick<SigninState, 'createPin' | 'startSignin' | 'finishSignin' | 'storeTokens' | 'collect' | 'acquire'>>;
+export type Store = Async<Pick<SigninState, 'createPin' | 'startSignin' | 'finishSignin' | 'storeTokens' | 'collect' | 'acquire' | 'firstToday'>>;

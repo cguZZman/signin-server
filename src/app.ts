@@ -3,6 +3,10 @@ import { type Messages, messages, negotiate } from './i18n';
 import { authorizeUrl, exchangeCode, isProvider, refresh, TokenError } from './oauth';
 import { failurePage, indexPage, notFoundPage, privacyPage, successPage, tooManyPage } from './pages';
 import { ipv6Groups, type Limit } from './state';
+import { clientInfo, ingest, record, type UsageEvent } from './usage';
+
+/** Records a usage event with the request's country and client. */
+type Track = (event: UsageEvent) => void;
 
 // Ties the browser that starts the sign-in to the one that finishes it, so a sign-in link cannot be sent to
 // someone else to collect their tokens. SameSite=None because Microsoft returns with a cross-site form POST
@@ -64,9 +68,17 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 
 	const client = clientAddress(request);
 	const path = url.pathname;
-	const limited = await store.acquire(limits(env, request, path, client, await refreshTokenHash(request)));
+	if (path === '/usage/report' && request.method === 'POST') {
+		return ingest(env, request);
+	}
+	const country = (request as { cf?: { country?: string } }).cf?.country ?? '';
+	const agent = clientInfo(request.headers.get('User-Agent'), request.headers.get('addon'));
+	const track: Track = (event) => record(env, { country, client: agent, ...event });
+	const tokenHash = await refreshTokenHash(request);
+	const limited = await store.acquire(limits(env, request, path, client, tokenHash));
 	if (limited) {
 		console.warn(`Rate limit exceeded: ${limited}`);
+		track({ event: 'rate_limited', outcome: 'rejected', error: limited });
 		const html = (request.headers.get('Accept') ?? '').includes('text/html');
 		return new Response(html ? tooManyPage(t) : 'Too many requests', {
 			status: 429,
@@ -78,13 +90,13 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 		return html(indexPage(t, sourceId(client)));
 	}
 	if (path === '/authorize') {
-		return signin(env, store, t, client, (await params(request)).get('pin') ?? '');
+		return signin(env, store, t, track, client, (await params(request)).get('pin') ?? '');
 	}
 	if (path.startsWith('/signin/')) {
-		return signin(env, store, t, client, path.slice('/signin/'.length));
+		return signin(env, store, t, track, client, path.slice('/signin/'.length));
 	}
 	if (path === '/callback') {
-		return callback(env, store, t, request, await params(request));
+		return callback(env, store, t, track, request, await params(request));
 	}
 	if (path === '/auth-success' && read) {
 		return html(successPage(t, funding(env)));
@@ -98,14 +110,21 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 	if (path === '/pin' && request.method === 'POST') {
 		const provider = (await params(request)).get('provider');
 		if (!isProvider(provider)) {
+			track({ event: 'pin', outcome: 'invalid_provider' });
 			return json({ status: 400, error: 'Invalid provider' }, 400);
 		}
+		track({ event: 'pin', provider, outcome: 'created' });
 		return json(await store.createPin(provider, client));
 	}
 	if (path.startsWith('/pin/') && read) {
 		const collected = await store.collect(path.slice('/pin/'.length), basicPassword(request), client);
 		if (collected.status === 200) {
+			track({ event: 'collect', outcome: 'delivered' });
 			return json(collected.tokens);
+		}
+		if (collected.status !== 202) {
+			// An expired or unknown code (the 202 "still waiting" answers are too many to count).
+			track({ event: 'collect', outcome: 'not_found' });
 		}
 		return collected.status === 202 ? new Response(null, { status: 202 }) : json({ status: 404, error: 'Not Found' }, 404);
 	}
@@ -117,8 +136,15 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 			return json({ status: 400, error: 'Provider and refresh token required' }, 400);
 		}
 		try {
-			return json(await refresh(env, provider, refreshToken));
+			const refreshed = await refresh(env, provider, refreshToken);
+			track({ event: 'refresh', provider, app: refreshed.app, outcome: 'ok' });
+			// Daily active accounts: the sum of these per day. Only a count is recorded, never the hash.
+			if (tokenHash && (await store.firstToday(`${provider}:${tokenHash}`))) {
+				track({ event: 'active_account', provider, app: refreshed.app, outcome: 'ok' });
+			}
+			return json(refreshed.tokens);
 		} catch (e) {
+			track({ event: 'refresh', provider, outcome: 'failed', error: e instanceof TokenError ? (e.error ?? String(e.status)) : 'server_error' });
 			if (e instanceof TokenError && e.status >= 400 && e.status < 500) {
 				return json({ status: e.status, error: e.error ?? 'Token request failed' }, e.status);
 			}
@@ -132,48 +158,58 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 }
 
 /** Sends the browser to the provider when the code exists and was created from this network. */
-async function signin(env: Env, store: Store, t: Messages, client: string, pin: string): Promise<Response> {
+async function signin(env: Env, store: Store, t: Messages, track: Track, client: string, pin: string): Promise<Response> {
 	// The letter O is a common typo for zero: codes are hexadecimal.
 	const code = pin.trim().toUpperCase().replace(/O/g, '0');
 	const started = code ? await store.startSignin(code, client) : null;
 	if (!started) {
+		track({ event: 'signin_start', outcome: 'invalid_code' });
 		return html(indexPage(t, sourceId(client), code.slice(0, 6), 'error.pin.invalid'));
 	}
+	track({ event: 'signin_start', provider: started.provider, outcome: 'redirected' });
 	const response = redirect(await authorizeUrl(env, started.provider, code, started.codeVerifier), 302);
 	response.headers.append('Set-Cookie', signinCookie(started.browserNonce, SIGNIN_COOKIE_AGE_S));
 	return response;
 }
 
-async function callback(env: Env, store: Store, t: Messages, request: Request, form: URLSearchParams): Promise<Response> {
+async function callback(env: Env, store: Store, t: Messages, track: Track, request: Request, form: URLSearchParams): Promise<Response> {
 	const error = form.get('error');
 	const state = form.get('state');
 	const code = form.get('code');
 	if (error === 'access_denied') {
+		track({ event: 'signin', outcome: 'denied', error });
 		return html(failurePage(t, { message: 'failure.denied' }));
 	}
 	if (error) {
+		track({ event: 'signin', outcome: 'provider_error', error });
 		return html(failurePage(t, { text: `${error}: ${form.get('error_description') ?? ''}` }));
 	}
 	if (!state || !code) {
+		track({ event: 'signin', outcome: 'missing_code' });
 		return html(failurePage(t, { message: 'failure.code.3' }));
 	}
 	const finished = await store.finishSignin(state, cookie(request, SIGNIN_COOKIE));
 	if (finished.status === 'expired') {
+		track({ event: 'signin', outcome: 'expired' });
 		return html(failurePage(t, { message: 'failure.code.1' }));
 	}
 	if (finished.status === 'other-browser') {
 		console.warn('Sign-in callback rejected: not finished in the browser that started it');
+		track({ event: 'signin', outcome: 'other_browser' });
 		return html(failurePage(t, { message: 'failure.code.4' }));
 	}
 	const clearCookie = signinCookie('', 0);
 	let page: Response;
 	try {
 		const tokens = await exchangeCode(env, finished.provider, code, finished.codeVerifier);
-		page = (await store.storeTokens(state, tokens)) ? redirect('/auth-success', 302) : html(failurePage(t, { message: 'failure.code.1' }));
+		const stored = await store.storeTokens(state, tokens);
+		track({ event: 'signin', provider: finished.provider, outcome: stored ? 'completed' : 'expired' });
+		page = stored ? redirect('/auth-success', 302) : html(failurePage(t, { message: 'failure.code.1' }));
 	} catch (e) {
 		if (!(e instanceof TokenError)) {
 			throw e;
 		}
+		track({ event: 'signin', provider: finished.provider, outcome: 'exchange_failed', error: e.error ?? String(e.status) });
 		page = html(failurePage(t, { message: 'failure.code.2', text: e.error ? `(${e.error})` : undefined }));
 	}
 	page.headers.append('Set-Cookie', clearCookie);

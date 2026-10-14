@@ -89,10 +89,10 @@ export function exchangeCode(env: Env, provider: string, code: string, codeVerif
 }
 
 /** Refreshes with the current app, and with the legacy app when the current one rejects the token. */
-export async function refresh(env: Env, provider: string, refreshToken: string): Promise<Tokens> {
+export async function refresh(env: Env, provider: string, refreshToken: string): Promise<{ tokens: Tokens; app: 'current' | 'legacy' }> {
 	const params = { grant_type: 'refresh_token', refresh_token: refreshToken };
 	try {
-		return await tokenRequest(env, provider, '', params);
+		return { tokens: await tokenRequest(env, provider, '', params), app: 'current' };
 	} catch (e) {
 		if (!(e instanceof TokenError) || e.status < 400 || e.status >= 500 || !setting(env, provider, 'LEGACY_CLIENT_ID')) {
 			throw e;
@@ -100,7 +100,7 @@ export async function refresh(env: Env, provider: string, refreshToken: string):
 		try {
 			const tokens = await tokenRequest(env, provider, 'LEGACY_', params);
 			console.log(`Token request succeeded with the legacy app: provider=${provider} grant_type=refresh_token`);
-			return tokens;
+			return { tokens, app: 'legacy' };
 		} catch {
 			// Most likely a token of the current app that is no longer valid: report the current app's error.
 			throw e;
