@@ -162,8 +162,8 @@ export function successPage(t: Messages, funding: Funding | null): string {
 	</svg>
 	<h1>${t.success.heading}</h1>
 	<p class="lead">${t.success.lead}</p>
-	<a class="button secondary" href="/">${t.success.another}</a>
 	${card}
+	<a class="button secondary" href="/">${t.success.another}</a>
 </div>`,
 	);
 }

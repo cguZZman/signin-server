@@ -451,6 +451,11 @@ h2 {
 
 /* Funding card */
 
+/* "Enter another code" follows the card. */
+.funding + .button {
+	margin-top: 20px;
+}
+
 .funding {
 	margin-top: 28px;
 	padding: 20px;
