@@ -32,7 +32,7 @@ export const en: Messages = {
 	},
 	funding: {
 		title: 'Help keep this sign-in working',
-		text: 'This free sign-in server is run by one developer. Hosting costs money, and Google requires a paid security assessment every year to keep Google Drive sign-in working. If the add-on is useful to you, please consider chipping in.',
+		text: 'This free sign-in service is run by one developer, for everyone using the Google Drive, OneDrive and Dropbox add-ons. Keeping it online, and keeping the add-ons working as the services change, takes time and money. If the add-ons are useful to you, please consider chipping in.',
 		progress: (raised, goal) => `${raised} of ${goal} raised this year`,
 		button: 'Support the project',
 	},
@@ -55,6 +55,7 @@ export const en: Messages = {
 	footer: {
 		privacy: 'Privacy policy',
 		source: 'Source code',
+		support: 'Support the project',
 		disclaimer: 'Not affiliated with or endorsed by Team Kodi, Google, Microsoft or Dropbox.',
 	},
 	privacy: {

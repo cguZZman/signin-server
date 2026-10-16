@@ -33,7 +33,7 @@ export const es: Messages = {
 	},
 	funding: {
 		title: 'Ayuda a que este inicio de sesión siga funcionando',
-		text: 'Este servidor de inicio de sesión gratuito lo mantiene un solo desarrollador. El hospedaje cuesta dinero, y Google exige una evaluación de seguridad pagada cada año para que el inicio de sesión de Google Drive siga funcionando. Si el complemento te resulta útil, considera hacer una aportación.',
+		text: 'Este servicio gratuito de inicio de sesión lo mantiene un solo desarrollador, para todos los que usan los complementos de Google Drive, OneDrive y Dropbox. Mantenerlo en línea, y que los complementos sigan funcionando cuando los servicios cambian, requiere tiempo y dinero. Si los complementos te resultan útiles, considera hacer una aportación.',
 		progress: (raised, goal) => `${raised} de ${goal} recaudados este año`,
 		button: 'Apoya el proyecto',
 	},
@@ -56,6 +56,7 @@ export const es: Messages = {
 	footer: {
 		privacy: 'Política de privacidad',
 		source: 'Código fuente',
+		support: 'Apoya el proyecto',
 		disclaimer: 'Sin afiliación ni respaldo de Team Kodi, Google, Microsoft ni Dropbox.',
 	},
 	privacy: {

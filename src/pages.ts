@@ -66,6 +66,7 @@ function layout(t: Messages, title: string, state: State, content: string): stri
 			<nav class="footer-links">
 				<a href="/privacypolicy">${t.footer.privacy}</a>
 				<a href="${SOURCE_URL}">${t.footer.source}</a>
+				${t.supportUrl ? `<a href="${escape(t.supportUrl)}" target="_blank" rel="noopener noreferrer">${t.footer.support}</a>` : ''}
 			</nav>
 			<p>${t.footer.disclaimer}</p>
 		</footer>

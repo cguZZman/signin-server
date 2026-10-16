@@ -39,7 +39,7 @@ const SECURITY_HEADERS: Record<string, string> = {
 
 export async function handle(request: Request, env: Env, store: Store): Promise<Response> {
 	const lang = negotiate(request.headers.get('Accept-Language'), new URL(request.url).searchParams.get('lang'));
-	const t = messages(lang);
+	const t = { ...messages(lang), supportUrl: env.FUNDING_URL || undefined };
 	let response: Response;
 	try {
 		response = await route(request, env, store, t);

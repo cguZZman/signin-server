@@ -33,7 +33,7 @@ export const pt: Messages = {
 	},
 	funding: {
 		title: 'Ajude a manter este login funcionando',
-		text: 'Este servidor de login gratuito é mantido por um único desenvolvedor. A hospedagem custa dinheiro, e o Google exige uma avaliação de segurança paga todo ano para o login do Google Drive continuar funcionando. Se o add-on é útil para você, considere contribuir.',
+		text: 'Este serviço de login gratuito é mantido por um único desenvolvedor, para todos que usam os add-ons do Google Drive, OneDrive e Dropbox. Mantê-lo no ar, e manter os add-ons funcionando quando os serviços mudam, exige tempo e dinheiro. Se os add-ons forem úteis para você, considere contribuir.',
 		progress: (raised, goal) => `${raised} de ${goal} arrecadados este ano`,
 		button: 'Apoie o projeto',
 	},
@@ -56,6 +56,7 @@ export const pt: Messages = {
 	footer: {
 		privacy: 'Política de privacidade',
 		source: 'Código-fonte',
+		support: 'Apoie o projeto',
 		disclaimer: 'Sem afiliação ou endosso da Team Kodi, do Google, da Microsoft ou do Dropbox.',
 	},
 	privacy: {

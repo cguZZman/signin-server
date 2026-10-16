@@ -1,0 +1,30 @@
+// Temporary copy of the service for recording the Google verification demo (2026-10): a separate Google Cloud
+// project in Testing, because the production project reached the 100-user cap of unverified apps. Same code,
+// its own Worker, storage and host name; no usage counting. Delete with `npx wrangler delete --name signin-server-demo`.
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "signin-server-demo",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-09-25",
+	"workers_dev": false,
+	"preview_urls": false,
+	"routes": [{ "pattern": "demo.signinserver.com", "custom_domain": true }],
+	"assets": { "directory": "./public" },
+	"durable_objects": {
+		"bindings": [{ "name": "STORE", "class_name": "SigninStore" }]
+	},
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["SigninStore"] }],
+	"observability": {
+		"enabled": true,
+		"logs": { "enabled": true, "invocation_logs": false }
+	},
+	"vars": {
+		"SITE_URL": "https://demo.signinserver.com",
+		"PROVIDER_GOOGLEDRIVE_CLIENT_ID": "544537949086-364j9350l860qshk11u1ejd81lhkv9ub.apps.googleusercontent.com",
+		"PROVIDER_GOOGLEDRIVE_URL_AUTHORIZE": "https://accounts.google.com/o/oauth2/v2/auth",
+		"PROVIDER_GOOGLEDRIVE_URL_TOKEN": "https://oauth2.googleapis.com/token",
+		"FUNDING_URL": "",
+		"FUNDING_GOAL": "0",
+		"FUNDING_RAISED": "0"
+	}
+}

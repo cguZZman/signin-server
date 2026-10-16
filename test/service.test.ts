@@ -35,6 +35,17 @@ describe('pages', () => {
 		expect((await server.get('/nothing-here')).status).toBe(404);
 	});
 
+	it('link the donation page from every page when configured', async () => {
+		expect(await (await server.get('/')).text()).not.toContain('Support the project');
+		server = new Server(testEnv({ FUNDING_URL: 'https://example.org/donate' }));
+		for (const path of ['/', '/privacypolicy', '/auth-success']) {
+			expect(await (await server.get(path)).text()).toContain('<a href="https://example.org/donate" target="_blank" rel="noopener noreferrer">Support the project</a>');
+		}
+		const success = await (await server.get('/auth-success')).text();
+		expect(success).toContain('Google Drive, OneDrive and Dropbox add-ons');
+		expect(success).not.toContain('security assessment');
+	});
+
 	it('show the funding card when configured', async () => {
 		server = new Server(testEnv({ FUNDING_URL: 'https://example.org/donate', FUNDING_GOAL: '1500', FUNDING_RAISED: '420' }));
 		const page = await (await server.get('/auth-success')).text();

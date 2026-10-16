@@ -15,6 +15,8 @@ export type ErrorMessage = 'error.pin.invalid' | 'failure.denied' | 'failure.cod
 export interface Messages {
 	// BCP 47 tag for <html lang> and Content-Language.
 	tag: string;
+	// Not translated: the donation page linked from every page's footer, set per request from FUNDING_URL.
+	supportUrl?: string;
 	// Formats amounts on the funding card.
 	locale: string;
 	steps: { label: string; code: string; signin: string; done: string };
@@ -43,7 +45,7 @@ export interface Messages {
 	errors: Record<ErrorMessage, string>;
 	tooMany: { title: string; text: string };
 	notFound: { title: string; text: string };
-	footer: { privacy: string; source: string; disclaimer: string };
+	footer: { privacy: string; source: string; support: string; disclaimer: string };
 	privacy: {
 		title: string;
 		// HTML of the policy. source: the source code URL.
