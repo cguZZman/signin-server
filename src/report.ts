@@ -81,30 +81,30 @@ export async function loadReport(query: Query, period: number, now = new Date())
 			 WHERE ${since} AND blob1 = 'refresh' GROUP BY day, outcome`,
 		),
 		query(
-			`SELECT blob2 AS provider, blob1 AS event, blob4 AS outcome, ${COUNT} AS n FROM signin_usage
-			 WHERE ${since} AND blob1 IN ('pin', 'signin', 'collect') AND blob2 != '' GROUP BY provider, event, outcome ORDER BY provider, event, n DESC`,
+			`SELECT ${DAY} AS day, blob2 AS provider, blob1 AS event, blob4 AS outcome, ${COUNT} AS n FROM signin_usage
+			 WHERE ${since} AND blob1 IN ('pin', 'signin', 'collect') AND blob2 != '' GROUP BY day, provider, event, outcome ORDER BY day DESC, provider, event, n DESC LIMIT 1000`,
 		),
 		query(
-			`SELECT blob6 AS source, blob2 AS provider, blob3 AS app, blob5 AS error, ${COUNT} AS n FROM signin_usage
-			 WHERE ${since} AND blob1 = 'refresh' AND blob4 = 'failed' GROUP BY source, provider, app, error ORDER BY n DESC LIMIT 20`,
+			`SELECT ${DAY} AS day, blob6 AS source, blob2 AS provider, blob3 AS app, blob5 AS error, ${COUNT} AS n FROM signin_usage
+			 WHERE ${since} AND blob1 = 'refresh' AND blob4 = 'failed' GROUP BY day, source, provider, app, error ORDER BY day DESC, n DESC LIMIT 1000`,
 		),
 		query(
-			`SELECT blob1 AS event, blob4 AS outcome, blob5 AS error, ${COUNT} AS n FROM signin_usage
+			`SELECT ${DAY} AS day, blob1 AS event, blob4 AS outcome, blob5 AS error, ${COUNT} AS n FROM signin_usage
 			 WHERE ${since} AND blob1 IN ('signin', 'signin_start', 'collect') AND blob4 NOT IN ('completed', 'redirected', 'delivered')
-			 GROUP BY event, outcome, error ORDER BY n DESC LIMIT 20`,
+			 GROUP BY day, event, outcome, error ORDER BY day DESC, n DESC LIMIT 1000`,
 		),
 		query(
-			`SELECT blob6 AS source, blob9 AS addon, blob10 AS version, blob11 AS common, blob12 AS kodi, ${COUNT} AS n FROM signin_usage
-			 WHERE ${since} AND blob8 = 'kodi' AND blob1 IN ('refresh', 'pin') GROUP BY source, addon, version, common, kodi ORDER BY n DESC LIMIT 25`,
+			`SELECT ${DAY} AS day, blob6 AS source, blob9 AS addon, blob10 AS version, blob11 AS common, blob12 AS kodi, ${COUNT} AS n FROM signin_usage
+			 WHERE ${since} AND blob8 = 'kodi' AND blob1 IN ('refresh', 'pin') GROUP BY day, source, addon, version, common, kodi ORDER BY day DESC, n DESC LIMIT 1000`,
 		),
 		query(
-			`SELECT blob7 AS country, ${COUNT} AS n FROM signin_usage
-			 WHERE ${since} AND blob8 = 'kodi' AND blob7 != '' GROUP BY country ORDER BY n DESC LIMIT 20`,
+			`SELECT ${DAY} AS day, blob7 AS country, ${COUNT} AS n FROM signin_usage
+			 WHERE ${since} AND blob8 = 'kodi' AND blob7 != '' GROUP BY day, country ORDER BY day DESC, n DESC LIMIT 2000`,
 		),
 		query(
-			`SELECT ${DAY} AS day, ${COUNT} AS n FROM signin_usage WHERE ${since} AND blob1 = 'error_report' GROUP BY day ORDER BY day`,
+			`SELECT ${DAY} AS day, ${COUNT} AS n FROM signin_usage WHERE ${since} AND blob1 = 'error_report' GROUP BY day ORDER BY day DESC`,
 		),
-		query(`SELECT blob5 AS name, ${COUNT} AS n FROM signin_usage WHERE ${since} AND blob1 = 'rate_limited' GROUP BY name ORDER BY n DESC`),
+		query(`SELECT ${DAY} AS day, blob5 AS name, ${COUNT} AS n FROM signin_usage WHERE ${since} AND blob1 = 'rate_limited' GROUP BY day, name ORDER BY day DESC, n DESC LIMIT 1000`),
 	]);
 
 	// Fixed order: it is the order of the chart colors.
@@ -145,32 +145,32 @@ export async function loadReport(query: Query, period: number, now = new Date())
 	const tables: Table[] = [
 		{
 			title: 'Sign-ins by provider',
-			columns: ['Provider', 'Step', 'Outcome', 'Count'],
-			rows: byProvider.map((r) => [text(r.provider), text(r.event), text(r.outcome), n(r)]),
+			columns: ['Day', 'Provider', 'Step', 'Outcome', 'Count'],
+			rows: byProvider.map((r) => [text(r.day), text(r.provider), text(r.event), text(r.outcome), n(r)]),
 		},
 		{
 			title: 'Sign-in problems',
 			description: 'Codes that were wrong or expired, sign-ins denied or failed at the provider, and codes Kodi gave up on.',
-			columns: ['Step', 'Outcome', 'Error', 'Count'],
-			rows: signinProblems.map((r) => [text(r.event), text(r.outcome), text(r.error), n(r)]),
+			columns: ['Day', 'Step', 'Outcome', 'Error', 'Count'],
+			rows: signinProblems.map((r) => [text(r.day), text(r.event), text(r.outcome), text(r.error), n(r)]),
 		},
 		{
 			title: 'Refresh failures',
 			description: 'invalid_grant: access revoked or token expired; the user has to sign in again.',
-			columns: ['Server', 'Provider', 'App', 'Error', 'Count'],
-			rows: failures.map((r) => [text(r.source), text(r.provider), text(r.app), text(r.error), n(r)]),
+			columns: ['Day', 'Server', 'Provider', 'App', 'Error', 'Count'],
+			rows: failures.map((r) => [text(r.day), text(r.source), text(r.provider), text(r.app), text(r.error), n(r)]),
 		},
 		{
 			title: 'Add-on versions',
 			description: 'Refreshes and codes created, by the versions Kodi reports. Kodi versions are sent from clouddrive.common 1.5.5.',
-			columns: ['Server', 'Add-on', 'Version', 'Common', 'Kodi', 'Requests'],
-			rows: versions.map((r) => [text(r.source), text(r.addon), text(r.version), text(r.common), text(r.kodi), n(r)]),
+			columns: ['Day', 'Server', 'Add-on', 'Version', 'Common', 'Kodi', 'Requests'],
+			rows: versions.map((r) => [text(r.day), text(r.source), text(r.addon), text(r.version), text(r.common), text(r.kodi), n(r)]),
 		},
 		{
 			title: 'Countries',
 			description: 'Requests from Kodi, by the country Cloudflare reports. The old server sends no countries.',
-			columns: ['Country', 'Requests'],
-			rows: countries.map((r) => [text(r.country), n(r)]),
+			columns: ['Day', 'Country', 'Requests'],
+			rows: countries.map((r) => [text(r.day), countryName(String(r.country)), n(r)]),
 		},
 		{
 			title: 'Ignored error reports (old server)',
@@ -180,8 +180,8 @@ export async function loadReport(query: Query, period: number, now = new Date())
 		},
 		{
 			title: 'Rate limits hit',
-			columns: ['Limit', 'Requests'],
-			rows: limits.map((r) => [text(r.name), n(r)]),
+			columns: ['Day', 'Limit', 'Requests'],
+			rows: limits.map((r) => [text(r.day), text(r.name), n(r)]),
 		},
 	];
 
@@ -210,6 +210,23 @@ export async function loadReport(query: Query, period: number, now = new Date())
 		],
 		tables,
 	};
+}
+
+// Cloudflare's own codes, besides ISO 3166 countries.
+const SPECIAL_COUNTRIES: Record<string, string> = { T1: 'Tor network', XX: 'Unknown' };
+const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+
+/** The English name of a country code from Cloudflare, or the code itself when it has none. */
+export function countryName(code: string): string {
+	if (SPECIAL_COUNTRIES[code]) {
+		return SPECIAL_COUNTRIES[code];
+	}
+	try {
+		const name = regionNames.of(code);
+		return name && name !== code ? name : code;
+	} catch {
+		return code;
+	}
 }
 
 export function format(value: number): string {

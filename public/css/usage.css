@@ -261,6 +261,10 @@
 .tables .wide {
 	grid-column: 1 / -1;
 }
+/* Tables with a row per day: long ones scroll inside their panel, under a header that stays visible. */
+.tables .table-scroll {
+	max-height: 420px;
+}
 /* Grid items may shrink below their content: wide tables scroll inside their panel instead of widening the page. */
 .tiles > *,
 .tables > * {

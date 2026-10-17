@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearAccessKeys } from '../src/access';
 import { scale } from '../src/dashboard';
-import { dayList, loadReport, type Row } from '../src/report';
+import { countryName, dayList, loadReport, type Row } from '../src/report';
 import { Server, testEnv } from './helpers';
 
 const TEAM = 'team.cloudflareaccess.com';
@@ -35,7 +35,10 @@ function answer(sql: string): Row[] {
 		];
 	}
 	if (sql.includes('blob7 AS country')) {
-		return [{ country: '<script>', n: 3 }];
+		return [
+			{ day: '2026-10-14', country: 'IL', n: 9 },
+			{ day: '2026-10-13', country: '<script>', n: 3 },
+		];
 	}
 	return [];
 }
@@ -156,6 +159,40 @@ describe('report', () => {
 			['Old server (Heroku)', 0, 14],
 		]);
 		expect(report.tiles[0]).toMatchObject({ label: 'Active accounts', value: '57' });
+	});
+});
+
+describe('countries', () => {
+	it('show their English names', () => {
+		expect(countryName('IL')).toBe('Israel');
+		expect(countryName('US')).toBe('United States');
+		expect(countryName('T1')).toBe('Tor network');
+		expect(countryName('XX')).toBe('Unknown');
+		expect(countryName('<script>')).toBe('<script>');
+	});
+
+	it('are listed per day, newest first', async () => {
+		const report = await loadReport(async (sql) => answer(sql), 7, NOW);
+		const countries = report.tables.find((t) => t.title === 'Countries');
+		expect(countries?.columns).toEqual(['Day', 'Country', 'Requests']);
+		expect(countries?.rows).toEqual([['2026-10-14', 'Israel', 9], ['2026-10-13', '<script>', 3]]);
+		expect(report.tables.filter((t) => t.columns[0] !== 'Day').map((t) => t.title)).toEqual([]);
+	});
+});
+
+describe('queries', () => {
+	it('select every column they group by', async () => {
+		const sqls: string[] = [];
+		await loadReport(async (sql) => {
+			sqls.push(sql);
+			return [];
+		}, 7, NOW);
+		for (const sql of sqls) {
+			const grouped = (sql.match(/GROUP BY ([\w, ]+?)(?: ORDER BY| LIMIT|$)/) ?? ['', ''])[1].split(',').map((c) => c.trim()).filter(Boolean);
+			for (const column of grouped) {
+				expect(sql, `${column} in: ${sql.replace(/\s+/g, ' ').slice(0, 80)}`).toMatch(new RegExp(`AS ${column}\\b`));
+			}
+		}
 	});
 });
 
