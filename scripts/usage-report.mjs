@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Prints the usage report (the same as the /usage page) for the last 7, 30 or 90 days.
 //
-//   node scripts/usage-report.mjs [days]          (default 7)
+//   node scripts/usage-report.mjs [days] [day]    (default 7; tables for one day, YYYY-MM-DD, instead of all of them)
 //
 // Needs a Cloudflare API token with Account > Account Analytics > Read, in CLOUDFLARE_API_TOKEN or in
 // ~/.config/cloudflare/usage-token (chmod 600), and the account ID in CLOUDFLARE_ACCOUNT_ID or in
@@ -12,8 +12,9 @@ import { join } from 'node:path';
 import { format, loadReport, PERIODS, sqlApi } from '../src/report.ts';
 
 const days = Number.parseInt(process.argv[2] ?? '7', 10);
-if (!PERIODS.includes(days)) {
-	console.error(`Usage: node scripts/usage-report.mjs [${PERIODS.join('|')}]`);
+const day = process.argv[3] ?? null;
+if (!PERIODS.includes(days) || (day !== null && !/^\d{4}-\d{2}-\d{2}$/.test(day))) {
+	console.error(`Usage: node scripts/usage-report.mjs [${PERIODS.join('|')}] [YYYY-MM-DD]`);
 	process.exit(2);
 }
 const setting = (env, file) => {
@@ -45,7 +46,11 @@ function table(title, columns, rows) {
 	}
 }
 
-const report = await loadReport(sqlApi(account, token), days);
+const report = await loadReport(sqlApi(account, token), days, new Date(), day);
+if (day !== null && report.day === null) {
+	console.error(`${day} is not one of the last ${days} days (UTC).`);
+	process.exit(2);
+}
 console.log(`Usage, last ${days} days (UTC)\n`);
 for (const tile of report.tiles) {
 	console.log(`  ${tile.label}: ${tile.value}  (${tile.detail})`);
@@ -57,6 +62,7 @@ for (const chart of report.charts) {
 		.filter((row) => row.slice(1).some((v) => v > 0));
 	table(chart.title, ['Day', ...chart.series.map((s) => s.name)], rows);
 }
+console.log(`\nTables for ${report.day ?? `all ${days} days`}`);
 for (const t of report.tables) {
 	table(t.title, t.columns, t.rows);
 }

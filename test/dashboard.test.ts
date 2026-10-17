@@ -36,8 +36,8 @@ function answer(sql: string): Row[] {
 	}
 	if (sql.includes('blob7 AS country')) {
 		return [
-			{ day: '2026-10-14', country: 'IL', n: 9 },
-			{ day: '2026-10-13', country: '<script>', n: 3 },
+			{ country: 'IL', n: 9 },
+			{ country: '<script>', n: 3 },
 		];
 	}
 	return [];
@@ -171,12 +171,51 @@ describe('countries', () => {
 		expect(countryName('<script>')).toBe('<script>');
 	});
 
-	it('are listed per day, newest first', async () => {
+	it('are listed by name', async () => {
 		const report = await loadReport(async (sql) => answer(sql), 7, NOW);
 		const countries = report.tables.find((t) => t.title === 'Countries');
-		expect(countries?.columns).toEqual(['Day', 'Country', 'Requests']);
-		expect(countries?.rows).toEqual([['2026-10-14', 'Israel', 9], ['2026-10-13', '<script>', 3]]);
-		expect(report.tables.filter((t) => t.columns[0] !== 'Day').map((t) => t.title)).toEqual([]);
+		expect(countries?.columns).toEqual(['Country', 'Requests']);
+		expect(countries?.rows).toEqual([['Israel', 9], ['<script>', 3]]);
+	});
+});
+
+describe('day filter', () => {
+	const tableQueries = (sqls: string[]) => sqls.filter((q) => !q.includes("'active_account'") && !q.includes('GROUP BY day, event, outcome') && !q.includes('GROUP BY day, outcome'));
+
+	it('shows the whole period by default', async () => {
+		const sqls: string[] = [];
+		const report = await loadReport(async (sql) => (sqls.push(sql), []), 7, NOW);
+		expect(report.day).toBeNull();
+		expect(sqls.every((q) => q.includes("timestamp >= toDateTime('2026-10-08 00:00:00')") && !q.includes('timestamp <'))).toBe(true);
+	});
+
+	it('narrows the tables, not the charts, to one day', async () => {
+		const sqls: string[] = [];
+		const report = await loadReport(async (sql) => (sqls.push(sql), []), 7, NOW, '2026-10-12');
+		expect(report.day).toBe('2026-10-12');
+		const tables = tableQueries(sqls);
+		expect(tables).toHaveLength(7);
+		expect(tables.every((q) => q.includes("timestamp >= toDateTime('2026-10-12 00:00:00') AND timestamp < toDateTime('2026-10-13 00:00:00')"))).toBe(true);
+		expect(sqls.filter((q) => q.includes("toDateTime('2026-10-08 00:00:00')"))).toHaveLength(3);
+	});
+
+	it('ignores days outside the period and anything that is not a day', async () => {
+		for (const day of ['2026-10-01', '2026-10-15', "2026-10-12') OR (1=1", '']) {
+			const sqls: string[] = [];
+			const report = await loadReport(async (sql) => (sqls.push(sql), []), 7, NOW, day);
+			expect(report.day, day).toBeNull();
+			expect(sqls.some((q) => q.includes('timestamp <') || q.includes('1=1'))).toBe(false);
+		}
+	});
+
+	it('is a picker on the page', async () => {
+		vi.useFakeTimers({ now: NOW, toFake: ['Date'] });
+		const page = await (await server.get('/usage?days=7&day=2026-10-13', await asUser())).text();
+		vi.useRealTimers();
+		expect(page).toContain('<option value="">All 7 days</option><option value="2026-10-14">Wed, Oct 14</option>');
+		expect(page).toContain('<option value="2026-10-13" selected>Tue, Oct 13</option>');
+		expect(page).toContain('<input type="hidden" name="days" value="7"/>');
+		expect(queries.some((q) => q.includes("timestamp < toDateTime('2026-10-14 00:00:00')"))).toBe(true);
 	});
 });
 
@@ -188,7 +227,7 @@ describe('queries', () => {
 			return [];
 		}, 7, NOW);
 		for (const sql of sqls) {
-			const grouped = (sql.match(/GROUP BY ([\w, ]+?)(?: ORDER BY| LIMIT|$)/) ?? ['', ''])[1].split(',').map((c) => c.trim()).filter(Boolean);
+			const grouped = (sql.match(/GROUP BY ([\w, ]+?)(?: ORDER BY| LIMIT|$)/)?.[1] ?? '').split(',').map((c) => c.trim()).filter(Boolean);
 			for (const column of grouped) {
 				expect(sql, `${column} in: ${sql.replace(/\s+/g, ' ').slice(0, 80)}`).toMatch(new RegExp(`AS ${column}\\b`));
 			}

@@ -56,3 +56,9 @@ document.querySelectorAll('.chart').forEach((chart) => {
 	});
 	svg.addEventListener('pointerleave', hide);
 });
+
+// The tables' day filter applies as soon as a day is picked.
+document.querySelectorAll('.day-filter').forEach((form) => {
+	form.querySelector('button').hidden = true;
+	form.querySelector('select').addEventListener('change', () => form.submit());
+});

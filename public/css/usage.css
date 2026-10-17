@@ -78,6 +78,34 @@
 	background: var(--accent-soft);
 }
 
+/* What the tables below cover: the whole period or one day. */
+.day-filter {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	margin: 28px 0 12px;
+}
+.day-filter label {
+	font-weight: 600;
+}
+.day-filter select,
+.day-filter button {
+	padding: 6px 10px;
+	font: inherit;
+	font-size: 0.9rem;
+	color: var(--text);
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+}
+.day-filter select {
+	min-width: 12rem;
+}
+.day-filter button {
+	cursor: pointer;
+}
+
 .panel {
 	background: var(--surface);
 	border: 1px solid var(--border);
@@ -261,7 +289,7 @@
 .tables .wide {
 	grid-column: 1 / -1;
 }
-/* Tables with a row per day: long ones scroll inside their panel, under a header that stays visible. */
+/* Long tables scroll inside their panel, under a header that stays visible. */
 .tables .table-scroll {
 	max-height: 420px;
 }
@@ -283,6 +311,11 @@
 	padding: 6px 8px;
 	border-bottom: 1px solid var(--border);
 	text-align: left;
+}
+/* Names wrap at spaces so a table fits its panel; days, numbers and headers stay on one line. */
+.dash th,
+.dash td:first-child,
+.dash .num {
 	white-space: nowrap;
 }
 .dash th {

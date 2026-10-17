@@ -26,6 +26,7 @@ export function usagePage(report: Report, period: number, user: string): string 
 				.join('')}
 		</section>
 		${report.charts.map((c, i) => chart(c, report.days, `chart-${i}`)).join('')}
+		${dayFilter(report, period)}
 		<section class="tables">
 			${report.tables.map(table).join('')}
 		</section>`,
@@ -149,6 +150,27 @@ function chart(c: DailyChart, days: string[], id: string): string {
 			${table({ title: '', columns: ['Day', ...c.series.map((s) => s.name)], rows: days.map((d, i) => [d, ...c.series.map((s) => s.values[i] ?? 0)]).reverse() })}
 		</details>
 	</section>`;
+}
+
+/** Picks what the tables cover: the whole period or one of its days, newest first. usage.js submits on change. */
+function dayFilter(report: Report, period: number): string {
+	const options = [`<option value="">All ${period} days</option>`]
+		.concat(
+			[...report.days].reverse().map((d) => `<option value="${d}"${d === report.day ? ' selected' : ''}>${weekdayLabel(d)}</option>`),
+		)
+		.join('');
+	return `<form class="day-filter" method="get" action="/usage">
+			<input type="hidden" name="days" value="${period}"/>
+			<label for="table-day">Tables for</label>
+			<select id="table-day" name="day">${options}</select>
+			<button type="submit">Show</button>
+		</form>`;
+}
+
+/** 2026-10-17 as "Sat, Oct 17". */
+function weekdayLabel(day: string): string {
+	const date = new Date(`${day}T00:00:00Z`);
+	return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getUTCDay()]}, ${MONTHS[date.getUTCMonth()]} ${date.getUTCDate()}`;
 }
 
 function table(t: Table): string {

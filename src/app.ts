@@ -175,11 +175,13 @@ async function usage(env: Env, request: Request, t: Messages): Promise<Response>
 	if (user === null) {
 		return new Response('Forbidden', { status: 403, headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' } });
 	}
-	const requested = number(new URL(request.url).searchParams.get('days') ?? undefined, 7);
+	const search = new URL(request.url).searchParams;
+	const requested = number(search.get('days') ?? undefined, 7);
 	const period = PERIODS.includes(requested) ? requested : 7;
 	let body: string;
 	try {
-		body = usagePage(await loadReport(sqlApi(env.ANALYTICS_ACCOUNT_ID, env.USAGE_API_TOKEN), period), period, user);
+		// loadReport only uses a day that is one of the period's days.
+		body = usagePage(await loadReport(sqlApi(env.ANALYTICS_ACCOUNT_ID, env.USAGE_API_TOKEN), period, new Date(), search.get('day')), period, user);
 	} catch (e) {
 		console.error(`Usage page: ${e instanceof Error ? e.message : e}`);
 		body = usageErrorPage(period, user, 'Analytics Engine did not answer. Try again in a minute.');
