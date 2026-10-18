@@ -51,6 +51,11 @@ export const es: Messages = {
 		'failure.code.3': 'La solicitud de inicio de sesión no es válida.',
 		'failure.code.4': 'Este inicio de sesión se terminó en un navegador distinto al que lo empezó. Vuelve a empezar desde Kodi y termina en el mismo navegador.',
 	},
+	continuing: {
+		title: 'Continuando al inicio de sesión',
+		text: (provider) => `Te llevamos a iniciar sesión con ${provider}…`,
+		link: (provider) => `Continuar con ${provider}`,
+	},
 	tooMany: { title: 'Demasiados intentos', text: 'Espera un minuto y vuelve a intentarlo.' },
 	notFound: { title: 'Página no encontrada', text: 'No hay nada en esta dirección.' },
 	footer: {

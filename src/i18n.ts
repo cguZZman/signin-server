@@ -43,6 +43,7 @@ export interface Messages {
 	funding: { title: string; text: string; progress: (raised: string, goal: string) => string; button: string };
 	failure: { title: string; heading: string; lead: string; retry: string };
 	errors: Record<ErrorMessage, string>;
+	continuing: { title: string; text: (provider: string) => string; link: (provider: string) => string };
 	tooMany: { title: string; text: string };
 	notFound: { title: string; text: string };
 	footer: { privacy: string; source: string; support: string; disclaimer: string };

@@ -32,7 +32,7 @@ function steps(t: Messages, state: State): string {
 			</ol>`;
 }
 
-function layout(t: Messages, title: string, state: State, content: string): string {
+function layout(t: Messages, title: string, state: State, content: string, head = ''): string {
 	return `<!DOCTYPE html>
 <html lang="${t.tag}">
 <head>
@@ -43,7 +43,7 @@ function layout(t: Messages, title: string, state: State, content: string): stri
 	<title>${escape(title)} · ${APP_NAME}</title>
 	<link rel="icon" href="/favicon.ico"/>
 	<link rel="stylesheet" href="/css/app.css"/>
-	<script src="/js/app.js" defer></script>
+	<script src="/js/app.js" defer></script>${head}
 </head>
 <body>
 	<main class="shell">
@@ -193,6 +193,27 @@ export function failurePage(t: Messages, error?: { message?: ErrorMessage; text?
 		</ul>
 	</details>
 </div>`,
+	);
+}
+
+// The companies users sign in with, by provider.
+const SIGNIN_WITH: Record<string, string> = { googledrive: 'Google', onedrive: 'Microsoft', dropbox: 'Dropbox' };
+
+/**
+ * Answers the code form: forwards to the provider's sign-in page with a refresh instead of an HTTP redirect, so the
+ * provider's page isn't the target of a form submission and the CSP can keep form-action 'self'.
+ */
+export function continuePage(t: Messages, provider: string, url: string): string {
+	const name = SIGNIN_WITH[provider] ?? provider;
+	return layout(
+		t,
+		t.continuing.title,
+		null,
+		`<div class="status">
+	<p class="lead">${escape(t.continuing.text(name))}</p>
+	<a class="button primary" href="${escape(url)}">${escape(t.continuing.link(name))}</a>
+</div>`,
+		`\n\t<meta http-equiv="refresh" content="0; url=${escape(url)}"/>`,
 	);
 }
 

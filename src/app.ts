@@ -4,7 +4,7 @@ import { authorizeUrl, exchangeCode, isProvider, refresh, TokenError } from './o
 import { accessUser } from './access';
 import { usageErrorPage, usagePage } from './dashboard';
 import { driveMetrics } from './google';
-import { failurePage, indexPage, notFoundPage, privacyPage, successPage, tooManyPage } from './pages';
+import { continuePage, failurePage, indexPage, notFoundPage, privacyPage, successPage, tooManyPage } from './pages';
 import { loadReport, PERIODS, sqlApi } from './report';
 import { ipv6Groups, type Limit } from './state';
 import { clientInfo, ingest, record, type UsageEvent } from './usage';
@@ -19,8 +19,8 @@ export const SIGNIN_COOKIE = '__Host-signin';
 const SIGNIN_COOKIE_AGE_S = 5 * 60;
 const RETRY_AFTER_S = 60;
 
-// No inline scripts or styles anywhere. form-action allows https: because /authorize answers the code form
-// with a redirect to the provider's sign-in page. public/_headers sets the same headers on static files.
+// No inline scripts or styles anywhere, and forms only post to this site: /authorize answers the code form with a
+// page that refreshes to the provider (continuePage). public/_headers sets the same headers on static files.
 const SECURITY_HEADERS: Record<string, string> = {
 	'Content-Security-Policy': [
 		"default-src 'self'",
@@ -30,12 +30,16 @@ const SECURITY_HEADERS: Record<string, string> = {
 		"object-src 'none'",
 		"base-uri 'none'",
 		"frame-ancestors 'none'",
-		"form-action 'self' https:",
+		"form-action 'self'",
 	].join('; '),
 	'Strict-Transport-Security': 'max-age=31536000',
 	'X-Content-Type-Options': 'nosniff',
 	// Keeps the code in /signin/{code} out of the Referer sent to providers and donation sites.
 	'Referrer-Policy': 'no-referrer',
+	'Permissions-Policy': 'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
+	'Cross-Origin-Opener-Policy': 'same-origin',
+	'Cross-Origin-Resource-Policy': 'same-origin',
+	'Cross-Origin-Embedder-Policy': 'require-corp',
 };
 
 export async function handle(request: Request, env: Env, store: Store): Promise<Response> {
@@ -97,7 +101,7 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 		return html(indexPage(t, sourceId(client)));
 	}
 	if (path === '/authorize') {
-		return signin(env, store, t, track, client, (await params(request)).get('pin') ?? '');
+		return signin(env, store, t, track, client, (await params(request)).get('pin') ?? '', request.method === 'POST');
 	}
 	if (path.startsWith('/signin/')) {
 		return signin(env, store, t, track, client, path.slice('/signin/'.length));
@@ -158,11 +162,15 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 			if (e instanceof TokenError && e.status >= 400 && e.status < 500) {
 				return json({ status: e.status, error: e.error ?? 'Token request failed' }, e.status);
 			}
-			throw e;
+			// The provider didn't answer, or failed. The add-ons retry on 503 (and give up on other errors).
+			console.error(`Refresh failed: provider=${provider} ${e instanceof Error ? e.message : e}`);
+			const unavailable = json({ status: 503, error: 'The provider did not answer. Try again in a minute.' }, 503);
+			unavailable.headers.set('Retry-After', String(RETRY_AFTER_S));
+			return unavailable;
 		}
 	}
 	if (path === '/ip' && read) {
-		return new Response(client, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+		return new Response(client, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } });
 	}
 	return new Response(notFoundPage(t), { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 }
@@ -192,7 +200,7 @@ async function usage(env: Env, request: Request, t: Messages): Promise<Response>
 }
 
 /** Sends the browser to the provider when the code exists and was created from this network. */
-async function signin(env: Env, store: Store, t: Messages, track: Track, client: string, pin: string): Promise<Response> {
+async function signin(env: Env, store: Store, t: Messages, track: Track, client: string, pin: string, fromForm = false): Promise<Response> {
 	// The letter O is a common typo for zero: codes are hexadecimal.
 	const code = pin.trim().toUpperCase().replace(/O/g, '0');
 	const started = code ? await store.startSignin(code, client) : null;
@@ -201,7 +209,8 @@ async function signin(env: Env, store: Store, t: Messages, track: Track, client:
 		return html(indexPage(t, sourceId(client), code.slice(0, 6), 'error.pin.invalid'));
 	}
 	track({ event: 'signin_start', provider: started.provider, outcome: 'redirected' });
-	const response = redirect(await authorizeUrl(env, started.provider, code, started.codeVerifier), 302);
+	const url = await authorizeUrl(env, started.provider, code, started.codeVerifier);
+	const response = fromForm ? html(continuePage(t, started.provider, url)) : redirect(url, 302);
 	response.headers.append('Set-Cookie', signinCookie(started.browserNonce, SIGNIN_COOKIE_AGE_S));
 	return response;
 }

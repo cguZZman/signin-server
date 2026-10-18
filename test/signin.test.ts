@@ -156,8 +156,20 @@ describe('sign-in', () => {
 	it('accepts the code from the form, in any case, with O typed for zero', async () => {
 		const { pin } = await createPin('onedrive');
 		const typed = pin.toLowerCase().replace(/0/g, 'o');
-		expect((await server.post('/authorize', { pin: typed })).status).toBe(302);
+		const answer = await server.post('/authorize', { pin: typed });
+		expect(answer.status).toBe(200);
+		expect(answer.headers.get('Set-Cookie')).toContain('__Host-signin=');
+		const page = await answer.text();
+		const target = /<meta http-equiv="refresh" content="0; url=([^"]+)"/.exec(page)?.[1]?.replace(/&amp;/g, '&') ?? '';
+		expect(new URL(target).host + new URL(target).pathname, 'refreshes to the provider').toBe('login.example.com/onedrive/authorize');
+		expect(page, 'with a link in case the refresh is blocked').toContain('Continue with Microsoft');
 		expect((await server.get(`/authorize?pin=${pin}`)).status).toBe(302);
+	});
+
+	it('only lets forms post to this site', async () => {
+		const csp = (await server.get('/')).headers.get('Content-Security-Policy') ?? '';
+		expect(csp).toContain("form-action 'self'");
+		expect(csp).not.toMatch(/form-action[^;]*https:/);
 	});
 
 	it('shows an error and keeps the code when it is wrong', async () => {
@@ -202,6 +214,19 @@ describe('sign-in', () => {
 });
 
 describe('refresh', () => {
+	it('answers 503 when the provider does not answer, so the add-ons retry', async () => {
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.stubGlobal('fetch', async () => {
+			throw new TypeError('Network connection lost');
+		});
+		const response = await server.post('/refresh', { provider: 'googledrive', refresh_token: 'secret-refresh-token' });
+		expect(response.status).toBe(503);
+		expect(response.headers.get('Retry-After')).toBe('60');
+		expect(response.headers.get('Content-Type')).toBe('application/json');
+		expect(error.mock.calls.join('\n')).toContain('Refresh failed: provider=googledrive Network connection lost');
+		expect(error.mock.calls.join('\n')).not.toContain('secret-refresh-token');
+	});
+
 	it('reports errors and logs them without the token', async () => {
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		const response = await server.post('/refresh', { provider: 'googledrive', refresh_token: 'bad-secret-refresh-token' });

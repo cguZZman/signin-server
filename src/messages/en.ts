@@ -50,6 +50,11 @@ export const en: Messages = {
 		'failure.code.3': 'The sign-in request was invalid.',
 		'failure.code.4': 'This sign-in was finished in a different browser from the one that started it. Start again from Kodi and finish in the same browser.',
 	},
+	continuing: {
+		title: 'Continuing to sign-in',
+		text: (provider) => `Taking you to sign in with ${provider}…`,
+		link: (provider) => `Continue with ${provider}`,
+	},
 	tooMany: { title: 'Too many attempts', text: 'Please wait a minute and try again.' },
 	notFound: { title: 'Page not found', text: "There's nothing at this address." },
 	footer: {

@@ -51,6 +51,11 @@ export const pt: Messages = {
 		'failure.code.3': 'A solicitação de login é inválida.',
 		'failure.code.4': 'Este login foi concluído em um navegador diferente do que o iniciou. Comece de novo no Kodi e termine no mesmo navegador.',
 	},
+	continuing: {
+		title: 'Continuando para o login',
+		text: (provider) => `Levando você para entrar com ${provider}…`,
+		link: (provider) => `Continuar com ${provider}`,
+	},
 	tooMany: { title: 'Muitas tentativas', text: 'Aguarde um minuto e tente de novo.' },
 	notFound: { title: 'Página não encontrada', text: 'Não há nada neste endereço.' },
 	footer: {
