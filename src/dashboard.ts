@@ -182,8 +182,8 @@ function table(t: Table): string {
 	const head = `<thead><tr>${t.columns.map((c, i) => `<th${i > 0 && typeof t.rows[0]?.[i] === 'number' ? ' class="num"' : ''}>${escape(c)}</th>`).join('')}</tr></thead>`;
 	const titled = t.title ? `<h2>${escape(t.title)}</h2>${t.description ? `<p class="muted">${escape(t.description)}</p>` : ''}` : '';
 	const wrapped = `<div class="table-scroll"><table>${head}<tbody>${body}</tbody></table></div>`;
-	// Tables with many columns take a whole row of the grid.
-	return t.title ? `<div class="panel${t.columns.length > 4 ? ' wide' : ''}">${titled}${wrapped}</div>` : wrapped;
+	// Tables with four or more columns take a whole row of the grid; the small ones share a row.
+	return t.title ? `<div class="panel${t.columns.length >= 4 ? ' wide' : ''}">${titled}${wrapped}</div>` : wrapped;
 }
 
 /** A y scale from 0 with clean tick steps (1, 2 or 5 × 10^k), about four ticks. */
