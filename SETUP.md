@@ -135,6 +135,22 @@ The same report is a private page at `/usage` (charts and tables, last 7, 30 or 
 
 The Worker also checks the Access login token itself, so the page stays closed if the Access application is removed. Until all four are set, `/usage` answers 404.
 
+#### Google's Drive API counts on /usage (optional)
+
+`/usage` can also show how many Drive API requests Kodi devices make with the tokens each Google project's app issued, read from Google Cloud Monitoring by a service account that can only read monitoring data:
+
+```bash
+A=<your Google account>; P=<project that holds the service account>
+gcloud services enable iam.googleapis.com --project $P --account $A
+gcloud iam service-accounts create usage-metrics --project $P --account $A --display-name "Usage page (read-only monitoring)"
+# For each Google project of the add-on:
+gcloud projects add-iam-policy-binding <project> --account $A --member serviceAccount:usage-metrics@$P.iam.gserviceaccount.com --role roles/monitoring.viewer --condition=None
+# The key goes straight into the Worker secret, without being saved anywhere:
+gcloud iam service-accounts keys create /dev/stdout --iam-account usage-metrics@$P.iam.gserviceaccount.com --account $A 2>/dev/null | npx wrangler secret put GOOGLE_METRICS_KEY
+```
+
+Then list the projects in `GOOGLE_METRICS_PROJECTS` in `wrangler.jsonc`, naming which app each one is: `old:<project>,new:<project>`. Without both, the page leaves Google out. `scripts/usage-report.mjs` doesn't show these counts (the key only exists in the Worker).
+
 An older sign-in server can send hourly summaries to `POST /ingest/usage` (as drive-login does). Set the same random token on both:
 
 ```bash

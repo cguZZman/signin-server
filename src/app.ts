@@ -3,6 +3,7 @@ import { type Messages, messages, negotiate } from './i18n';
 import { authorizeUrl, exchangeCode, isProvider, refresh, TokenError } from './oauth';
 import { accessUser } from './access';
 import { usageErrorPage, usagePage } from './dashboard';
+import { driveMetrics } from './google';
 import { failurePage, indexPage, notFoundPage, privacyPage, successPage, tooManyPage } from './pages';
 import { loadReport, PERIODS, sqlApi } from './report';
 import { ipv6Groups, type Limit } from './state';
@@ -181,7 +182,8 @@ async function usage(env: Env, request: Request, t: Messages): Promise<Response>
 	let body: string;
 	try {
 		// loadReport only uses a day that is one of the period's days.
-		body = usagePage(await loadReport(sqlApi(env.ANALYTICS_ACCOUNT_ID, env.USAGE_API_TOKEN), period, new Date(), search.get('day')), period, user);
+		const drive = env.GOOGLE_METRICS_KEY && env.GOOGLE_METRICS_PROJECTS ? driveMetrics(env.GOOGLE_METRICS_KEY, env.GOOGLE_METRICS_PROJECTS) : undefined;
+		body = usagePage(await loadReport(sqlApi(env.ANALYTICS_ACCOUNT_ID, env.USAGE_API_TOKEN), period, new Date(), search.get('day'), drive), period, user);
 	} catch (e) {
 		console.error(`Usage page: ${e instanceof Error ? e.message : e}`);
 		body = usageErrorPage(period, user, 'Analytics Engine did not answer. Try again in a minute.');

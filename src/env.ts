@@ -26,6 +26,10 @@ export interface Env {
 	ACCESS_AUD?: string;
 	ANALYTICS_ACCOUNT_ID?: string;
 	USAGE_API_TOKEN?: string;
+	// Optional on /usage: Google's Drive API counts. The JSON key of a service account with Monitoring Viewer on the
+	// Google projects, and which app each project is: "old:project-id,new:project-id". See src/google.ts.
+	GOOGLE_METRICS_KEY?: string;
+	GOOGLE_METRICS_PROJECTS?: string;
 	STORE?: DurableObjectNamespace;
 	ASSETS?: Fetcher;
 }

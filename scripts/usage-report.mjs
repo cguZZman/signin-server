@@ -3,6 +3,8 @@
 //
 //   node scripts/usage-report.mjs [days] [day]    (default 7; tables for one day, YYYY-MM-DD, instead of all of them)
 //
+// Google's Drive API counts are only on the page: they need the Worker's service account key (see SETUP.md).
+//
 // Needs a Cloudflare API token with Account > Account Analytics > Read, in CLOUDFLARE_API_TOKEN or in
 // ~/.config/cloudflare/usage-token (chmod 600), and the account ID in CLOUDFLARE_ACCOUNT_ID or in
 // ~/.config/cloudflare/account-id. Node 22.18 or later (it loads src/report.ts directly).

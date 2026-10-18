@@ -40,6 +40,18 @@ export interface Report {
 	tables: Table[];
 }
 
+/** Drive API requests on one UTC day, from one Google project's app ('old' or 'new'), by method and response code. */
+export interface DriveCount {
+	app: string;
+	day: string;
+	method: string;
+	code: string;
+	n: number;
+}
+
+/** Reads Drive API request counts for the UTC days from `start` to `end`, inclusive (src/google.ts). */
+export type DriveMetrics = (start: string, end: string) => Promise<DriveCount[]>;
+
 export const PERIODS = [7, 30, 90];
 
 const COUNT = 'SUM(_sample_interval * double1)';
@@ -56,9 +68,10 @@ export function dayList(period: number, now = new Date()): string[] {
 
 /**
  * The charts and tiles cover the whole period; the tables cover `day` when it is one of the period's days (only those
- * reach the SQL), or else the whole period.
+ * reach the SQL), or else the whole period. With `drive`, Google's Drive API counts are added as a chart and a table;
+ * if Google doesn't answer, those two say so and the rest of the report is unaffected.
  */
-export async function loadReport(query: Query, period: number, now = new Date(), day: string | null = null): Promise<Report> {
+export async function loadReport(query: Query, period: number, now = new Date(), day: string | null = null, drive?: DriveMetrics): Promise<Report> {
 	const days = dayList(period, now);
 	const since = `timestamp >= toDateTime('${days[0]} 00:00:00')`;
 	const selected = day && days.includes(day) ? day : null;
@@ -75,6 +88,10 @@ export async function loadReport(query: Query, period: number, now = new Date(),
 		}
 		return series;
 	};
+	const driveCounts = drive?.(days[0] ?? '', days.at(-1) ?? '').then(
+		(counts) => ({ counts, error: '' }),
+		(e: unknown) => ({ counts: [] as DriveCount[], error: e instanceof Error ? e.message : String(e) }),
+	);
 	const [active, funnel, refreshes, byProvider, failures, signinProblems, versions, countries, reports, limits] = await Promise.all([
 		query(
 			`SELECT ${DAY} AS day, blob6 AS source, blob2 AS provider, blob3 AS app, ${COUNT} AS n FROM signin_usage
@@ -150,6 +167,7 @@ export async function loadReport(query: Query, period: number, now = new Date(),
 
 	const n = (row: Row) => Math.round(Number(row.n));
 	const text = (value: unknown) => (value === '' || value === undefined ? '–' : String(value));
+	const google = driveCounts ? driveReport(await driveCounts, days, selected) : null;
 	const tables: Table[] = [
 		{
 			title: 'Sign-ins by provider',
@@ -168,6 +186,7 @@ export async function loadReport(query: Query, period: number, now = new Date(),
 			columns: ['Server', 'Provider', 'App', 'Error', 'Count'],
 			rows: failures.map((r) => [text(r.source), text(r.provider), text(r.app), text(r.error), n(r)]),
 		},
+		...(google ? [google.table] : []),
 		{
 			title: 'Add-on versions',
 			description: 'Refreshes and codes created, by the versions Kodi reports. Kodi versions are sent from clouddrive.common 1.5.5.',
@@ -216,9 +235,80 @@ export async function loadReport(query: Query, period: number, now = new Date(),
 				form: 'stacked',
 				series: refreshSeries,
 			},
+			...(google ? [google.chart] : []),
 		],
 		tables,
 	};
+}
+
+const GOOGLE_APPS: Record<string, string> = { old: 'Old Google app', new: 'New Google app' };
+const RESULTS: Record<string, string> = {
+	'200': 'OK',
+	'204': 'OK',
+	'302': 'redirected',
+	'304': 'not modified',
+	'400': 'bad request',
+	'401': 'not signed in',
+	'403': 'refused',
+	'404': 'not found',
+	'429': 'rate limited',
+	'500': 'Google error',
+	'503': 'Google unavailable',
+};
+
+/** The Drive API chart (per day, by app) and table (calls by app, method and result, for `day` or the period). */
+function driveReport(result: { counts: DriveCount[]; error: string }, days: string[], day: string | null): { chart: DailyChart; table: Table } {
+	const index = new Map(days.map((d, i) => [d, i]));
+	const series = Object.entries(GOOGLE_APPS).map(([app, name]) => {
+		const values = days.map(() => 0);
+		for (const c of result.counts) {
+			const i = index.get(c.day);
+			if (c.app === app && i !== undefined) {
+				values[i] = (values[i] ?? 0) + c.n;
+			}
+		}
+		return { name, values };
+	});
+	const failed = result.error ? `Google's monitoring data could not be loaded: ${result.error}` : '';
+	const totals = new Map<string, { app: string; call: string; code: string; n: number }>();
+	for (const c of result.counts) {
+		if (day ? c.day !== day : !index.has(c.day)) {
+			continue;
+		}
+		const call = driveCall(c.method);
+		const key = `${c.app}|${call}|${c.code}`;
+		const total = totals.get(key) ?? { app: c.app, call, code: c.code, n: 0 };
+		total.n += c.n;
+		totals.set(key, total);
+	}
+	return {
+		chart: {
+			title: 'Google Drive API requests per day',
+			description:
+				failed ||
+				"Requests from Kodi devices to Google's Drive API, by the Google app that issued the user's sign-in: the old app (the old server, and sign-ins before the new app) or the new one. From Google Cloud Monitoring.",
+			form: 'stacked',
+			series,
+		},
+		table: {
+			title: 'Google Drive API calls',
+			description:
+				failed ||
+				'changes.list: exports that watch for changes check every minute. 302: downloads sent on to Google\'s file servers. 403 on files.get: usually a file over its download quota.',
+			columns: ['App', 'Call', 'Result', 'Requests'],
+			rows: [...totals.values()]
+				.sort((a, b) => b.n - a.n)
+				.slice(0, 50)
+				.map((t) => [GOOGLE_APPS[t.app] ?? t.app, t.call, RESULTS[t.code] ? `${t.code} ${RESULTS[t.code]}` : t.code || '–', t.n]),
+		},
+	};
+}
+
+/** google.apps.drive.v3.DriveChanges.List as changes.list, the name in Google's API reference. */
+function driveCall(method: string): string {
+	const match = /Drive(\w+)\.(\w+)$/.exec(method);
+	const lower = (word: string) => word.charAt(0).toLowerCase() + word.slice(1);
+	return match ? `${lower(match[1] ?? '')}.${lower(match[2] ?? '')}` : method || '–';
 }
 
 // Cloudflare's own codes, besides ISO 3166 countries.
