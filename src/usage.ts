@@ -119,17 +119,22 @@ export function clientInfo(userAgent: string | null, addonHeader: string | null 
 	return info;
 }
 
+// Signed reports older (or newer) than this are refused, so a captured report can't be replayed.
+const SIGNATURE_MAX_AGE_S = 5 * 60;
+
 /**
- * Usage summaries from the old sign-in server (drive-login), sent with the shared USAGE_REPORT_TOKEN.
+ * Usage summaries from the old sign-in server (drive-login), signed with the shared USAGE_REPORT_TOKEN as an
+ * HMAC-SHA256 key: X-Usage-Signature: t=<unix seconds>,v1=<hex HMAC of "<t>.<body>">.
  * Body: {"events": [{event, provider, app, outcome, error, addon, addon_version, common_version, count}]}.
  */
-export async function ingest(env: Env, request: Request): Promise<Response> {
-	if (!env.USAGE_REPORT_TOKEN || !(await sameSecret(request.headers.get('Authorization') ?? '', `Bearer ${env.USAGE_REPORT_TOKEN}`))) {
+export async function ingest(env: Env, request: Request, now = Date.now()): Promise<Response> {
+	const text = await request.text();
+	if (!env.USAGE_REPORT_TOKEN || !(await authentic(env.USAGE_REPORT_TOKEN, request, text, now))) {
 		return new Response('Unauthorized', { status: 401 });
 	}
 	let body: { events?: unknown };
 	try {
-		body = (await request.json()) as { events?: unknown };
+		body = JSON.parse(text) as { events?: unknown };
 	} catch {
 		return new Response('Invalid JSON', { status: 400 });
 	}
@@ -161,6 +166,26 @@ export async function ingest(env: Env, request: Request): Promise<Response> {
 		written++;
 	}
 	return Response.json({ written });
+}
+
+async function authentic(secret: string, request: Request, body: string, now: number): Promise<boolean> {
+	const signature = request.headers.get('X-Usage-Signature');
+	if (signature !== null) {
+		return validSignature(secret, signature, body, now);
+	}
+	// Until drive-login signs its reports (then removed): the token itself as a bearer token.
+	return sameSecret(request.headers.get('Authorization') ?? '', `Bearer ${secret}`);
+}
+
+/** Checks "t=<unix seconds>,v1=<hex HMAC-SHA256 of '<t>.<body>'>"; crypto.subtle.verify compares in constant time. */
+export async function validSignature(secret: string, header: string, body: string, now: number): Promise<boolean> {
+	const match = /^t=(\d{1,12}),v1=([0-9a-f]{64})$/.exec(header.trim());
+	if (!match || Math.abs(now / 1000 - Number(match[1])) > SIGNATURE_MAX_AGE_S) {
+		return false;
+	}
+	const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+	const mac = Uint8Array.from((match[2] ?? '').match(/../g) ?? [], (byte) => Number.parseInt(byte, 16));
+	return crypto.subtle.verify('HMAC', key, mac, new TextEncoder().encode(`${match[1]}.${body}`));
 }
 
 async function sameSecret(a: string, b: string): Promise<boolean> {

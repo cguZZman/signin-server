@@ -151,7 +151,7 @@ gcloud iam service-accounts keys create /dev/stdout --iam-account usage-metrics@
 
 Then list the projects in `GOOGLE_METRICS_PROJECTS` in `wrangler.jsonc`, naming which app each one is: `old:<project>,new:<project>`. Without both, the page leaves Google out. `scripts/usage-report.mjs` doesn't show these counts (the key only exists in the Worker).
 
-An older sign-in server can send hourly summaries to `POST /ingest/usage` (as drive-login does). Set the same random token on both:
+An older sign-in server can send hourly summaries to `POST /ingest/usage` (as drive-login does), signed with HMAC-SHA256 (`X-Usage-Signature: t=<unix seconds>,v1=<hex HMAC of "<t>.<body>">`; reports more than 5 minutes old are refused). Set the same random signing key on both:
 
 ```bash
 npx wrangler secret put USAGE_REPORT_TOKEN
@@ -193,4 +193,4 @@ The page language follows the browser's `Accept-Language` (English, Spanish or P
 | `GET /`, `POST /authorize`, `GET /signin/{code}` | Browser | Enter the code (form or QR link) and go to the provider |
 | `GET` or `POST /callback` | Provider | Return from the sign-in |
 | `GET /privacypolicy` | Browser | Privacy policy |
-| `POST /ingest/usage` | drive-login | Usage summaries from the older sign-in server (bearer token) |
+| `POST /ingest/usage` | drive-login | Usage summaries from the older sign-in server, signed with HMAC-SHA256 (`X-Usage-Signature`) |

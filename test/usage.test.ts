@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SIGNIN_COOKIE } from '../src/app';
 import { SigninState } from '../src/state';
-import { BLOBS, clientInfo } from '../src/usage';
+import { BLOBS, clientInfo, validSignature } from '../src/usage';
 import { basic, cookieValue, MockTokenEndpoint, Server, testEnv } from './helpers';
 
 /** Stands in for the Analytics Engine dataset: keeps the data points as objects keyed by column name. */
@@ -143,9 +143,18 @@ describe('client info', () => {
 	});
 });
 
+/** drive-login's signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<body>">. */
+async function sign(body: string, key = 'report-token', seconds = Math.floor(Date.now() / 1000)): Promise<string> {
+	const hmac = await crypto.subtle.importKey('raw', new TextEncoder().encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+	const mac = new Uint8Array(await crypto.subtle.sign('HMAC', hmac, new TextEncoder().encode(`${seconds}.${body}`)));
+	return `t=${seconds},v1=${Array.from(mac, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+}
+
 describe('drive-login summaries', () => {
-	const report = (body: unknown, token = 'report-token') =>
-		server.request('/ingest/usage', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+	const report = async (body: unknown, key = 'report-token') => {
+		const text = JSON.stringify(body);
+		return server.request('/ingest/usage', { method: 'POST', headers: { 'X-Usage-Signature': await sign(text, key), 'Content-Type': 'application/json' }, body: text });
+	};
 
 	it('are written with source heroku', async () => {
 		const response = await report({
@@ -162,6 +171,24 @@ describe('drive-login summaries', () => {
 		]);
 	});
 
+	it('use the same signature as drive-login', async () => {
+		// HMAC-SHA256(key "report-token", "1700000000.{}"), computed independently; drive-login's test checks the same vector.
+		const header = 't=1700000000,v1=dd048e5b96b9ea5a246af6fae0229cdb7fd89d8bc24def0b197dbb146c393906';
+		expect(await validSignature('report-token', header, '{}', 1_700_000_000_000)).toBe(true);
+		expect(await validSignature('report-token', header, '{} ', 1_700_000_000_000)).toBe(false);
+	});
+
+	it('need a valid, recent signature of the exact body', async () => {
+		const text = JSON.stringify({ events: [{ event: 'refresh', outcome: 'ok', count: 1 }] });
+		const send = (signature: string, body = text) => server.request('/ingest/usage', { method: 'POST', headers: { 'X-Usage-Signature': signature }, body });
+		expect((await send(await sign(text))).status).toBe(200);
+		expect((await send(await sign(text), text.replace('"count":1', '"count":9'))).status, 'tampered body').toBe(401);
+		expect((await send(await sign(text, 'other-key'))).status, 'wrong key').toBe(401);
+		expect((await send(await sign(text, 'report-token', Math.floor(Date.now() / 1000) - 600))).status, 'replayed after 10 minutes').toBe(401);
+		expect((await send('t=1,v1=zz')).status, 'malformed').toBe(401);
+		expect(dataset.points).toHaveLength(1);
+	});
+
 	it('need the token', async () => {
 		expect((await report({ events: [{ event: 'refresh', outcome: 'ok', count: 1 }] }, 'wrong')).status).toBe(401);
 		server = new Server(testEnv({ USAGE: dataset as unknown as AnalyticsEngineDataset }));
@@ -172,6 +199,15 @@ describe('drive-login summaries', () => {
 	it('reject bad bodies', async () => {
 		expect((await report({ events: [] })).status).toBe(400);
 		expect((await report({ events: Array(201).fill({ event: 'refresh', outcome: 'ok', count: 1 }) })).status).toBe(400);
-		expect((await server.request('/ingest/usage', { method: 'POST', headers: { Authorization: 'Bearer report-token' }, body: 'nope' })).status).toBe(400);
+		expect((await server.request('/ingest/usage', { method: 'POST', headers: { 'X-Usage-Signature': await sign('nope') }, body: 'nope' })).status).toBe(400);
+	});
+
+	it('still accept the bearer token while drive-login switches to signatures', async () => {
+		const response = await server.request('/ingest/usage', {
+			method: 'POST',
+			headers: { Authorization: 'Bearer report-token' },
+			body: JSON.stringify({ events: [{ event: 'refresh', outcome: 'ok', count: 1 }] }),
+		});
+		expect(response.status).toBe(200);
 	});
 });
