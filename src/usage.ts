@@ -129,7 +129,8 @@ const SIGNATURE_MAX_AGE_S = 5 * 60;
  */
 export async function ingest(env: Env, request: Request, now = Date.now()): Promise<Response> {
 	const text = await request.text();
-	if (!env.USAGE_REPORT_TOKEN || !(await authentic(env.USAGE_REPORT_TOKEN, request, text, now))) {
+	const signature = request.headers.get('X-Usage-Signature');
+	if (!env.USAGE_REPORT_TOKEN || signature === null || !(await validSignature(env.USAGE_REPORT_TOKEN, signature, text, now))) {
 		return new Response('Unauthorized', { status: 401 });
 	}
 	let body: { events?: unknown };
@@ -168,15 +169,6 @@ export async function ingest(env: Env, request: Request, now = Date.now()): Prom
 	return Response.json({ written });
 }
 
-async function authentic(secret: string, request: Request, body: string, now: number): Promise<boolean> {
-	const signature = request.headers.get('X-Usage-Signature');
-	if (signature !== null) {
-		return validSignature(secret, signature, body, now);
-	}
-	// Until drive-login signs its reports (then removed): the token itself as a bearer token.
-	return sameSecret(request.headers.get('Authorization') ?? '', `Bearer ${secret}`);
-}
-
 /** Checks "t=<unix seconds>,v1=<hex HMAC-SHA256 of '<t>.<body>'>"; crypto.subtle.verify compares in constant time. */
 export async function validSignature(secret: string, header: string, body: string, now: number): Promise<boolean> {
 	const match = /^t=(\d{1,12}),v1=([0-9a-f]{64})$/.exec(header.trim());
@@ -188,12 +180,6 @@ export async function validSignature(secret: string, header: string, body: strin
 	return crypto.subtle.verify('HMAC', key, mac, new TextEncoder().encode(`${match[1]}.${body}`));
 }
 
-async function sameSecret(a: string, b: string): Promise<boolean> {
-	// Compares digests, so the time taken doesn't depend on where the strings differ.
-	const digest = async (s: string) => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
-	const [x, y] = await Promise.all([digest(a), digest(b)]);
-	return x.every((byte, i) => byte === y[i]);
-}
 
 function clip(text: string, max = 200): string {
 	return text.length > max ? text.slice(0, max) : text;

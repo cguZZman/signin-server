@@ -202,12 +202,12 @@ describe('drive-login summaries', () => {
 		expect((await server.request('/ingest/usage', { method: 'POST', headers: { 'X-Usage-Signature': await sign('nope') }, body: 'nope' })).status).toBe(400);
 	});
 
-	it('still accept the bearer token while drive-login switches to signatures', async () => {
+	it('no longer accept the token as a bearer token', async () => {
 		const response = await server.request('/ingest/usage', {
 			method: 'POST',
 			headers: { Authorization: 'Bearer report-token' },
 			body: JSON.stringify({ events: [{ event: 'refresh', outcome: 'ok', count: 1 }] }),
 		});
-		expect(response.status).toBe(200);
+		expect(response.status).toBe(401);
 	});
 });
