@@ -367,6 +367,9 @@ h2 {
 	font-size: 0.875rem;
 	color: var(--muted);
 }
+.button + .notice {
+	margin: 20px 0 0;
+}
 
 /* Help disclosure */
 

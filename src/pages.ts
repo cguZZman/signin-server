@@ -217,6 +217,28 @@ export function continuePage(t: Messages, provider: string, url: string): string
 	);
 }
 
+/**
+ * Shown by Heroku, inside an iframe, at the old server's address (drive-login.herokuapp.com) since it closed. Links
+ * open in a new tab: they can't navigate the iframe to this site, which doesn't allow framing elsewhere.
+ */
+export function closedPage(t: Messages & { supportUrl?: string }, siteUrl: string): string {
+	const support = t.supportUrl ? `<p class="notice">${t.closed.support} <a href="${escape(t.supportUrl)}">Ko-fi</a>.</p>` : '';
+	return layout(
+		t,
+		t.closed.title,
+		null,
+		`<div class="status">
+	<h1>${t.closed.heading}</h1>
+	<p class="lead">${t.closed.lead}</p>
+	<p>${t.closed.kodi19}</p>
+	<p>${t.closed.kodi17}</p>
+	<a class="button primary" href="${escape(siteUrl)}">${t.closed.button}</a>
+	${support}
+</div>`,
+		'\n\t<base target="_blank"/>',
+	);
+}
+
 export function tooManyPage(t: Messages): string {
 	return simplePage(t, t.tooMany.title, t.tooMany.text);
 }

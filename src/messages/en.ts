@@ -55,6 +55,15 @@ export const en: Messages = {
 		text: (provider) => `Taking you to sign in with ${provider}…`,
 		link: (provider) => `Continue with ${provider}`,
 	},
+	closed: {
+		title: "Old sign-in server closed",
+		heading: "This sign-in server has closed",
+		lead: "drive-login.herokuapp.com stopped working on October 30, 2026. The Google Drive and OneDrive add-ons now sign in at <strong>drive.signinserver.com</strong>.",
+		kodi19: "<strong>Kodi 19 or later:</strong> update the add-on (Add-ons › My add-ons › Video add-ons › Google Drive or OneDrive › Update). Your accounts keep working; you won't need to sign in again.",
+		kodi17: "<strong>Kodi 17 or 18:</strong> these versions are no longer supported. Please update Kodi to version 19 or later.",
+		button: "Go to the new sign-in page",
+		support: "The add-ons and the sign-in service are free and run by one person. If they are useful to you, you can support them on",
+	},
 	tooMany: { title: 'Too many attempts', text: 'Please wait a minute and try again.' },
 	notFound: { title: 'Page not found', text: "There's nothing at this address." },
 	footer: {

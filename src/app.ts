@@ -4,7 +4,7 @@ import { authorizeUrl, exchangeCode, isProvider, refresh, TokenError } from './o
 import { accessUser } from './access';
 import { usageErrorPage, usagePage } from './dashboard';
 import { driveMetrics } from './google';
-import { continuePage, failurePage, indexPage, notFoundPage, privacyPage, successPage, tooManyPage } from './pages';
+import { closedPage, continuePage, failurePage, indexPage, notFoundPage, privacyPage, successPage, tooManyPage } from './pages';
 import { loadReport, PERIODS, sqlApi } from './report';
 import { ipv6Groups, type Limit } from './state';
 import { clientInfo, ingest, record, type UsageEvent } from './usage';
@@ -17,6 +17,9 @@ type Track = (event: UsageEvent) => void;
 // (response_mode=form_post), which would not carry a Lax cookie.
 export const SIGNIN_COOKIE = '__Host-signin';
 const SIGNIN_COOKIE_AGE_S = 5 * 60;
+// The previous sign-in server, closed on 2026-10-30. Its Heroku error and maintenance pages show CLOSED_PAGE.
+const OLD_SERVER = 'https://drive-login.herokuapp.com';
+const CLOSED_PAGE = '/drive-login-closed';
 const RETRY_AFTER_S = 60;
 
 // No inline scripts or styles anywhere, and forms only post to this site: /authorize answers the code form with a
@@ -56,6 +59,11 @@ export async function handle(request: Request, env: Env, store: Store): Promise<
 	const secured = new Response(response.body, response);
 	for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
 		secured.headers.set(name, value);
+	}
+	if (new URL(request.url).pathname === CLOSED_PAGE) {
+		// Heroku shows its error and maintenance pages in an iframe on the old server's address.
+		const csp = secured.headers.get('Content-Security-Policy') ?? '';
+		secured.headers.set('Content-Security-Policy', csp.replace("frame-ancestors 'none'", `frame-ancestors ${OLD_SERVER}`));
 	}
 	if ((secured.headers.get('Content-Type') ?? '').startsWith('text/html')) {
 		secured.headers.set('Content-Language', t.tag);
@@ -117,6 +125,9 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 	}
 	if (path === '/privacypolicy' && read) {
 		return html(privacyPage(t));
+	}
+	if (path === CLOSED_PAGE && read) {
+		return html(closedPage(t, env.SITE_URL));
 	}
 	if (path === '/pin' && request.method === 'POST') {
 		const provider = (await params(request)).get('provider');

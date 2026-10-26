@@ -166,6 +166,20 @@ describe('sign-in', () => {
 		expect((await server.get(`/authorize?pin=${pin}`)).status).toBe(302);
 	});
 
+	it('shows the old server\'s closure page, framed only by its Heroku address', async () => {
+		server = new Server(testEnv({ FUNDING_URL: 'https://ko-fi.com/example' }));
+		const response = await server.get('/drive-login-closed');
+		expect(response.status).toBe(200);
+		expect(response.headers.get('Content-Security-Policy')).toContain('frame-ancestors https://drive-login.herokuapp.com');
+		const page = await response.text();
+		expect(page).toContain('This sign-in server has closed');
+		expect(page, 'links leave the iframe').toContain('<base target="_blank"/>');
+		expect(page).toContain('href="https://ko-fi.com/example"');
+		expect((await server.get('/')).headers.get('Content-Security-Policy'), 'other pages still refuse framing').toContain("frame-ancestors 'none'");
+		const spanish = await (await server.get('/drive-login-closed', { headers: { 'Accept-Language': 'es-MX,es;q=0.9' } })).text();
+		expect(spanish).toContain('Este servidor de inicio de sesión cerró');
+	});
+
 	it('only lets forms post to this site', async () => {
 		const csp = (await server.get('/')).headers.get('Content-Security-Policy') ?? '';
 		expect(csp).toContain("form-action 'self'");

@@ -44,6 +44,7 @@ export interface Messages {
 	failure: { title: string; heading: string; lead: string; retry: string };
 	errors: Record<ErrorMessage, string>;
 	continuing: { title: string; text: (provider: string) => string; link: (provider: string) => string };
+	closed: { title: string; heading: string; lead: string; kodi19: string; kodi17: string; button: string; support: string };
 	tooMany: { title: string; text: string };
 	notFound: { title: string; text: string };
 	footer: { privacy: string; source: string; support: string; disclaimer: string };

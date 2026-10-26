@@ -56,6 +56,15 @@ export const pt: Messages = {
 		text: (provider) => `Levando você para entrar com ${provider}…`,
 		link: (provider) => `Continuar com ${provider}`,
 	},
+	closed: {
+		title: "Servidor de login antigo encerrado",
+		heading: "Este servidor de login foi encerrado",
+		lead: "drive-login.herokuapp.com parou de funcionar em 30 de outubro de 2026. Os complementos do Google Drive e do OneDrive agora fazem login em <strong>drive.signinserver.com</strong>.",
+		kodi19: "<strong>Kodi 19 ou posterior:</strong> atualize o complemento (Add-ons › Meus add-ons › Add-ons de vídeo › Google Drive ou OneDrive › Atualizar). Suas contas continuam funcionando; você não precisará entrar de novo.",
+		kodi17: "<strong>Kodi 17 ou 18:</strong> essas versões não são mais suportadas. Atualize o Kodi para a versão 19 ou posterior.",
+		button: "Ir para a nova página de login",
+		support: "Os complementos e o serviço de login são gratuitos e mantidos por uma só pessoa. Se eles são úteis para você, você pode apoiá-los no",
+	},
 	tooMany: { title: 'Muitas tentativas', text: 'Aguarde um minuto e tente de novo.' },
 	notFound: { title: 'Página não encontrada', text: 'Não há nada neste endereço.' },
 	footer: {

@@ -56,6 +56,15 @@ export const es: Messages = {
 		text: (provider) => `Te llevamos a iniciar sesión con ${provider}…`,
 		link: (provider) => `Continuar con ${provider}`,
 	},
+	closed: {
+		title: "Servidor de inicio de sesión antiguo cerrado",
+		heading: "Este servidor de inicio de sesión cerró",
+		lead: "drive-login.herokuapp.com dejó de funcionar el 30 de octubre de 2026. Los complementos de Google Drive y OneDrive ahora inician sesión en <strong>drive.signinserver.com</strong>.",
+		kodi19: "<strong>Kodi 19 o posterior:</strong> actualiza el complemento (Complementos › Mis complementos › Complementos de vídeo › Google Drive u OneDrive › Actualizar). Tus cuentas siguen funcionando; no tendrás que iniciar sesión de nuevo.",
+		kodi17: "<strong>Kodi 17 o 18:</strong> estas versiones ya no tienen soporte. Actualiza Kodi a la versión 19 o posterior.",
+		button: "Ir a la nueva página de inicio de sesión",
+		support: "Los complementos y el servicio de inicio de sesión son gratuitos y los mantiene una sola persona. Si te son útiles, puedes apoyarlos en",
+	},
 	tooMany: { title: 'Demasiados intentos', text: 'Espera un minuto y vuelve a intentarlo.' },
 	notFound: { title: 'Página no encontrada', text: 'No hay nada en esta dirección.' },
 	footer: {
