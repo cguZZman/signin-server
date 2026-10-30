@@ -34,8 +34,8 @@ export const pt: Messages = {
 	funding: {
 		title: 'Ajude a manter este login funcionando',
 		text: 'Este serviço de login gratuito é mantido por um único desenvolvedor, para todos que usam os add-ons do Google Drive, OneDrive e Dropbox. Mantê-lo no ar, e manter os add-ons funcionando quando os serviços mudam, exige tempo e dinheiro. Se os add-ons forem úteis para você, considere contribuir.',
-		goal: 'A meta deste ano cobre a revisão de segurança que o Google exige todo ano para que o add-on do Google Drive continue fazendo login (US$ 675, até janeiro de 2027), além de domínios, hospedagem, taxas e impostos.',
-		progress: (raised, goal) => `${raised} de ${goal} arrecadados este ano`,
+		goal: 'Meta até dezembro: a revisão de segurança que o Google exige todo ano para que o add-on do Google Drive continue fazendo login (US$ 675), além de domínios, hospedagem, taxas e impostos.',
+		progress: (raised, goal) => `${raised} de ${goal} arrecadados até agora`,
 		button: 'Apoie o projeto',
 	},
 	failure: {

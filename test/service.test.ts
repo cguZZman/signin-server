@@ -49,7 +49,7 @@ describe('pages', () => {
 	it('show the funding card when configured', async () => {
 		server = new Server(testEnv({ FUNDING_URL: 'https://example.org/donate', FUNDING_GOAL: '1500', FUNDING_RAISED: '420' }));
 		const page = await (await server.get('/auth-success')).text();
-		for (const part of ['class="funding"', 'href="https://example.org/donate"', 'value="28"', '$420 of $1,500 raised this year', 'security review Google requires']) {
+		for (const part of ['class="funding"', 'href="https://example.org/donate"', 'value="28"', '$420 of $1,500 raised so far', 'security review Google requires']) {
 			expect(page).toContain(part);
 		}
 	});
