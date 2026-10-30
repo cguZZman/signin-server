@@ -44,7 +44,7 @@
 		"GOOGLE_METRICS_PROJECTS": "old:hallowed-spider-169418,new:signinserver-511222",
 		"FUNDING_URL": "https://github.com/sponsors/cguZZman",
 		"FUNDING_GOAL": "840",
-		"FUNDING_RAISED": "0"
+		"FUNDING_RAISED": "17"
 	}
 	// Secrets (wrangler secret put): PROVIDER_GOOGLEDRIVE_CLIENT_SECRET, PROVIDER_ONEDRIVE_CLIENT_SECRET, and for tokens
 	// issued by the previous apps: PROVIDER_<NAME>_LEGACY_CLIENT_ID and PROVIDER_<NAME>_LEGACY_CLIENT_SECRET.
