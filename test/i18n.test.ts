@@ -49,7 +49,7 @@ describe('translated pages', () => {
 		expect(await (await server.get('/callback?code=x&state=FFFFFF', lang('pt'))).text()).toContain('Seu código não é mais válido');
 		const success = await (await server.get('/auth-success', lang('pt-BR'))).text();
 		expect(success).toContain('Digitar outro código');
-		expect(success).toContain('arrecadados até agora');
+		expect(success).toContain('arrecadados este ano');
 		expect(await (await server.get('/privacypolicy', lang('es'))).text()).toContain('Uso Limitado');
 		expect(await (await server.get('/privacypolicy?lang=en', lang('es'))).text()).toContain('Limited Use requirements');
 	});
