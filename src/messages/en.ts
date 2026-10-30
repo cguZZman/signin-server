@@ -33,6 +33,7 @@ export const en: Messages = {
 	funding: {
 		title: 'Help keep this sign-in working',
 		text: 'This free sign-in service is run by one developer, for everyone using the Google Drive, OneDrive and Dropbox add-ons. Keeping it online, and keeping the add-ons working as the services change, takes time and money. If the add-ons are useful to you, please consider chipping in.',
+		goal: "This year's goal covers the security review Google requires every year so the Google Drive add-on can keep signing in ($675, due January 2027), plus domains, hosting, payment fees and taxes.",
 		progress: (raised, goal) => `${raised} of ${goal} raised this year`,
 		button: 'Support the project',
 	},

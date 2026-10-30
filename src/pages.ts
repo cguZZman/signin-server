@@ -141,7 +141,8 @@ export function successPage(t: Messages, funding: Funding | null): string {
 		if (funding.goal > 0) {
 			const percent = Math.min(100, Math.max(0, Math.floor((funding.raised * 100) / funding.goal)));
 			const amount = new Intl.NumberFormat(t.locale, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
-			progress = `<progress class="funding-bar" max="100" value="${percent}">${percent}%</progress>
+			progress = `<p>${t.funding.goal}</p>
+		<progress class="funding-bar" max="100" value="${percent}">${percent}%</progress>
 		<p class="funding-progress">${t.funding.progress(amount.format(funding.raised), amount.format(funding.goal))}</p>`;
 		}
 		card = `<section class="funding" aria-labelledby="funding-title">

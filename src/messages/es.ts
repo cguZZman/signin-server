@@ -34,6 +34,7 @@ export const es: Messages = {
 	funding: {
 		title: 'Ayuda a que este inicio de sesión siga funcionando',
 		text: 'Este servicio gratuito de inicio de sesión lo mantiene un solo desarrollador, para todos los que usan los complementos de Google Drive, OneDrive y Dropbox. Mantenerlo en línea, y que los complementos sigan funcionando cuando los servicios cambian, requiere tiempo y dinero. Si los complementos te resultan útiles, considera hacer una aportación.',
+		goal: 'La meta de este año cubre la revisión de seguridad que Google exige cada año para que el complemento de Google Drive pueda seguir iniciando sesión (USD 675, antes de enero de 2027), además de dominios, hosting, comisiones e impuestos.',
 		progress: (raised, goal) => `${raised} de ${goal} recaudados este año`,
 		button: 'Apoya el proyecto',
 	},

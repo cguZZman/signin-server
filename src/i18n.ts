@@ -40,7 +40,7 @@ export interface Messages {
 		forum: string;
 	};
 	success: { title: string; heading: string; lead: string; another: string };
-	funding: { title: string; text: string; progress: (raised: string, goal: string) => string; button: string };
+	funding: { title: string; text: string; goal: string; progress: (raised: string, goal: string) => string; button: string };
 	failure: { title: string; heading: string; lead: string; retry: string };
 	errors: Record<ErrorMessage, string>;
 	continuing: { title: string; text: (provider: string) => string; link: (provider: string) => string };
