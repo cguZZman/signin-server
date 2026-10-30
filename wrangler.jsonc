@@ -43,7 +43,7 @@
 		// Google projects whose Drive API counts /usage shows (with the GOOGLE_METRICS_KEY secret; see SETUP.md).
 		"GOOGLE_METRICS_PROJECTS": "old:hallowed-spider-169418,new:signinserver-511222",
 		"FUNDING_URL": "https://github.com/sponsors/cguZZman",
-		"FUNDING_GOAL": "675",
+		"FUNDING_GOAL": "840",
 		"FUNDING_RAISED": "17"
 	}
 	// Secrets (wrangler secret put): PROVIDER_GOOGLEDRIVE_CLIENT_SECRET, PROVIDER_ONEDRIVE_CLIENT_SECRET, and for tokens
