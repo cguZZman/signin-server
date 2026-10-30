@@ -42,9 +42,9 @@
 		"ACCESS_AUD": "1e9c95f2b74584228e9865bd43b1a931470244bd2d3320cf1b0c75223dc10337",
 		// Google projects whose Drive API counts /usage shows (with the GOOGLE_METRICS_KEY secret; see SETUP.md).
 		"GOOGLE_METRICS_PROJECTS": "old:hallowed-spider-169418,new:signinserver-511222",
-		"FUNDING_URL": "https://ko-fi.com/cguzzman",
-		"FUNDING_GOAL": "0",
-		"FUNDING_RAISED": "0"
+		"FUNDING_URL": "https://github.com/sponsors/cguZZman",
+		"FUNDING_GOAL": "675",
+		"FUNDING_RAISED": "17"
 	}
 	// Secrets (wrangler secret put): PROVIDER_GOOGLEDRIVE_CLIENT_SECRET, PROVIDER_ONEDRIVE_CLIENT_SECRET, and for tokens
 	// issued by the previous apps: PROVIDER_<NAME>_LEGACY_CLIENT_ID and PROVIDER_<NAME>_LEGACY_CLIENT_SECRET.

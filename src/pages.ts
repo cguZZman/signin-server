@@ -222,7 +222,7 @@ export function continuePage(t: Messages, provider: string, url: string): string
  * open in a new tab: they can't navigate the iframe to this site, which doesn't allow framing elsewhere.
  */
 export function closedPage(t: Messages & { supportUrl?: string }, siteUrl: string): string {
-	const support = t.supportUrl ? `<p class="notice">${t.closed.support} <a href="${escape(t.supportUrl)}">Ko-fi</a>.</p>` : '';
+	const support = t.supportUrl ? `<p class="notice">${t.closed.support} <a href="${escape(t.supportUrl)}">GitHub Sponsors</a>.</p>` : '';
 	return layout(
 		t,
 		t.closed.title,
