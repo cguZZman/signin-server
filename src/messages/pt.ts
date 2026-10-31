@@ -120,6 +120,8 @@ export const pt: Messages = {
 		<dd>Listar suas pastas e arquivos e pesquisar neles. Acesso somente leitura.</dd>
 		<dt><code>files.content.read</code></dt>
 		<dd>Reproduzir e exibir seus arquivos (vídeos, músicas, imagens e legendas). Acesso somente leitura.</dd>
+		<dt><code>sharing.read</code></dt>
+		<dd>Listar as pastas e arquivos que outras pessoas compartilham com você, em "Shared with me", e reproduzi-los. Acesso somente leitura.</dd>
 	</dl>
 
 	<h2>Como seus dados circulam</h2>

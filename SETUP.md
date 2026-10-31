@@ -38,7 +38,7 @@ The service only needs the providers you want to use.
 ### Dropbox
 
 1. In the [Dropbox App Console](https://www.dropbox.com/developers/apps), create an app: **Scoped access**, **Full Dropbox**. Its name can't contain "Dropbox".
-2. **Permissions:** `account_info.read`, `files.metadata.read` and `files.content.read`.
+2. **Permissions:** `account_info.read`, `files.metadata.read`, `files.content.read` and `sharing.read`.
 3. **Settings → OAuth 2 → Redirect URIs:** `https://login.example.com/callback`. Keep the **App key** and **App secret**.
 4. New apps are in development status: up to 500 users can link them (click **Enable additional users** to allow others than you). Apply for production when you need more.
 
