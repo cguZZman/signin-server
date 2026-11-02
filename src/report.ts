@@ -98,16 +98,16 @@ export async function loadReport(query: Query, period: number, now = new Date(),
 			 WHERE ${since} AND blob1 = 'active_account' GROUP BY day, source, provider, app`,
 		),
 		query(
-			`SELECT ${DAY} AS day, blob1 AS event, blob4 AS outcome, ${COUNT} AS n FROM signin_usage
-			 WHERE ${since} AND blob1 IN ('pin', 'signin', 'collect') GROUP BY day, event, outcome`,
+			`SELECT ${DAY} AS day, blob1 AS event, blob4 AS outcome, blob3 AS app, ${COUNT} AS n FROM signin_usage
+			 WHERE ${since} AND blob1 IN ('pin', 'signin', 'collect') GROUP BY day, event, outcome, app`,
 		),
 		query(
 			`SELECT ${DAY} AS day, blob4 AS outcome, ${COUNT} AS n FROM signin_usage
 			 WHERE ${since} AND blob1 = 'refresh' GROUP BY day, outcome`,
 		),
 		query(
-			`SELECT blob2 AS provider, blob1 AS event, blob4 AS outcome, ${COUNT} AS n FROM signin_usage
-			 WHERE ${range} AND blob1 IN ('pin', 'signin', 'collect') AND blob2 != '' GROUP BY provider, event, outcome ORDER BY provider, event, n DESC`,
+			`SELECT blob2 AS provider, blob3 AS app, blob1 AS event, blob4 AS outcome, ${COUNT} AS n FROM signin_usage
+			 WHERE ${range} AND blob1 IN ('pin', 'signin', 'collect') AND blob2 != '' GROUP BY provider, app, event, outcome ORDER BY provider, app, event, n DESC`,
 		),
 		query(
 			`SELECT blob6 AS source, blob2 AS provider, blob3 AS app, blob5 AS error, ${COUNT} AS n FROM signin_usage
@@ -147,6 +147,10 @@ export async function loadReport(query: Query, period: number, now = new Date(),
 	const signinSeries = daily(SIGNIN, funnel, (r) =>
 		r.event === 'pin' && r.outcome === 'created' ? (SIGNIN[0] ?? null) : r.event === 'signin' && r.outcome === 'completed' ? (SIGNIN[1] ?? null) : null,
 	);
+	// Sign-ins with the user's own Google app (also counted in signinSeries). Their refreshes go to Google directly, so
+	// these accounts never count as active here: sign-ins are all this server sees of them.
+	const OWN_APP = ['Own Google app'];
+	const ownAppSeries = daily(OWN_APP, funnel, (r) => (r.event === 'signin' && r.outcome === 'completed' && r.app === 'own' ? (OWN_APP[0] ?? null) : null));
 	const REFRESH = ['Succeeded', 'Failed'];
 	const refreshSeries = daily(REFRESH, refreshes, (r) => (r.outcome === 'ok' ? (REFRESH[0] ?? null) : r.outcome === 'failed' ? (REFRESH[1] ?? null) : null));
 
@@ -155,6 +159,7 @@ export async function loadReport(query: Query, period: number, now = new Date(),
 	const last = days.length - 1;
 	const codes = sum(signinSeries[0]?.values ?? []);
 	const completed = sum(signinSeries[1]?.values ?? []);
+	const ownApp = sum(ownAppSeries[0]?.values ?? []);
 	const refreshOk = sum(refreshSeries[0]?.values ?? []);
 	const refreshFailed = sum(refreshSeries[1]?.values ?? []);
 	const lastDays = `last ${days.length} days`;
@@ -163,6 +168,7 @@ export async function loadReport(query: Query, period: number, now = new Date(),
 		{ label: 'Sign-ins completed', value: format(completed), detail: `${lastDays}, of ${format(codes)} codes created` },
 		{ label: 'Sign-in completion', value: percent(completed, codes), detail: `completed ÷ codes created, ${lastDays}` },
 		{ label: 'Refresh failures', value: percent(refreshFailed, refreshOk + refreshFailed), detail: `${format(refreshFailed)} of ${format(refreshOk + refreshFailed)}, ${lastDays}` },
+		{ label: 'Own Google app sign-ins', value: format(ownApp), detail: `${lastDays}; they renew with Google directly, so they aren't counted as active` },
 	];
 
 	const n = (row: Row) => Math.round(Number(row.n));
@@ -171,8 +177,9 @@ export async function loadReport(query: Query, period: number, now = new Date(),
 	const tables: Table[] = [
 		{
 			title: 'Sign-ins by provider',
-			columns: ['Provider', 'Step', 'Outcome', 'Count'],
-			rows: byProvider.map((r) => [text(r.provider), text(r.event), text(r.outcome), n(r)]),
+			description: "App: own, the user's own Google app; – the service's.",
+			columns: ['Provider', 'App', 'Step', 'Outcome', 'Count'],
+			rows: byProvider.map((r) => [text(r.provider), text(r.app), text(r.event), text(r.outcome), n(r)]),
 		},
 		{
 			title: 'Sign-in problems',
@@ -228,6 +235,12 @@ export async function loadReport(query: Query, period: number, now = new Date(),
 				description: 'Codes created in Kodi, and sign-ins completed in the browser. Both servers.',
 				form: 'line',
 				series: signinSeries,
+			},
+			{
+				title: "Sign-ins with the user's own Google app per day",
+				description: 'Google Drive sign-ins completed with an OAuth client of the user\'s own Google Cloud project (also in the chart above). Their tokens are refreshed with Google directly, never here.',
+				form: 'line',
+				series: ownAppSeries,
 			},
 			{
 				title: 'Token refreshes per day',

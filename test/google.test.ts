@@ -158,8 +158,8 @@ describe('report', () => {
 		expect(report.charts.find((c) => c.title === 'Google Drive API requests per day')?.description).toBe(
 			"Google's monitoring data could not be loaded: Cloud Monitoring answered 403",
 		);
-		expect(report.charts).toHaveLength(4);
-		expect(report.tiles).toHaveLength(4);
+		expect(report.charts).toHaveLength(5);
+		expect(report.tiles).toHaveLength(5);
 	});
 
 	it('leaves Google out when it is not configured', async () => {

@@ -25,7 +25,9 @@ function answer(sql: string): Row[] {
 	if (sql.includes("blob1 IN ('pin', 'signin', 'collect') GROUP BY day")) {
 		return [
 			{ day: '2026-10-14', event: 'pin', outcome: 'created', n: 10 },
-			{ day: '2026-10-14', event: 'signin', outcome: 'completed', n: 4 },
+			{ day: '2026-10-14', event: 'signin', outcome: 'completed', app: '', n: 2 },
+			{ day: '2026-10-14', event: 'signin', outcome: 'completed', app: 'own', n: 2 },
+			{ day: '2026-10-13', event: 'signin', outcome: 'expired', app: 'own', n: 1 },
 		];
 	}
 	if (sql.includes("blob1 = 'refresh' GROUP BY day")) {
@@ -123,7 +125,7 @@ describe('/usage', () => {
 		expect(page, 'refresh failure tile').toContain('25%');
 		expect(page, 'country names are escaped').toContain('&lt;script&gt;');
 		expect(page).not.toContain('<script>"');
-		expect(page.match(/class="hit"/g)?.length, 'one hover target per day and chart').toBe(30 * 3);
+		expect(page.match(/class="hit"/g)?.length, 'one hover target per day and chart').toBe(30 * 4);
 		expect(queries.every((q) => q.includes("timestamp >= toDateTime('") && q.endsWith('FORMAT JSON'))).toBe(true);
 	});
 
@@ -159,6 +161,14 @@ describe('report', () => {
 			['Old server (Heroku)', 0, 14],
 		]);
 		expect(report.tiles[0]).toMatchObject({ label: 'Active accounts', value: '57' });
+	});
+
+	it("counts the sign-ins with the user's own Google app", async () => {
+		const report = await loadReport(async (sql) => answer(sql), 7, NOW);
+		const own = report.charts.find((c) => c.title.includes('own Google app'));
+		expect(own?.series.map((s) => [s.name, s.values.at(-2), s.values.at(-1)])).toEqual([['Own Google app', 0, 2]]);
+		expect(report.charts[1]?.series[1]?.values.at(-1), 'also among all sign-ins').toBe(4);
+		expect(report.tiles.find((t) => t.label === 'Own Google app sign-ins')).toMatchObject({ value: '2' });
 	});
 });
 
