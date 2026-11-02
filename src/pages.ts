@@ -2,6 +2,8 @@
 import type { ErrorMessage, Messages } from './i18n';
 
 export const SOURCE_URL = 'https://github.com/cguZZman/signin-server';
+// How to create your own Google app to sign in with.
+export const OWN_APP_GUIDE_URL = 'https://github.com/cguZZman/plugin.googledrive#signing-in-with-your-own-google-app';
 // Not translated: it is the app's name, and must match the name on the providers' consent screens.
 const APP_NAME = 'Cloud Drive Sign-in for Kodi';
 
@@ -84,8 +86,17 @@ function forumLinks(t: Messages): string {
 			</li>`;
 }
 
-export function indexPage(t: Messages, sourceId: string, pin = '', error?: ErrorMessage): string {
-	const invalid = error ? ' aria-invalid="true" aria-describedby="pin-error"' : '';
+/** The code form again after an error: the code, and the client ID of the user's own app (never its secret). */
+export interface CodeForm {
+	pin?: string;
+	clientId?: string;
+}
+
+export function indexPage(t: Messages, sourceId: string, form: CodeForm = {}, error?: ErrorMessage): string {
+	const ownClientError = error?.startsWith('error.ownclient.');
+	const invalid = error && !ownClientError ? ' aria-invalid="true" aria-describedby="pin-error"' : '';
+	const clientInvalid = ownClientError ? ' aria-invalid="true" aria-describedby="pin-error"' : '';
+	const ownClientOpen = ownClientError || form.clientId ? ' open' : '';
 	return layout(
 		t,
 		t.index.title,
@@ -99,13 +110,23 @@ export function indexPage(t: Messages, sourceId: string, pin = '', error?: Error
 		<div class="code-field">
 			<input id="pin" name="pin" type="text" required autofocus
 				maxlength="6" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false"
-				value="${escape(pin)}" placeholder="A1B2C3"${invalid}/>
+				value="${escape(form.pin ?? '')}" placeholder="A1B2C3"${invalid}/>
 			<div class="code-boxes" aria-hidden="true">
 				<span class="code-box"></span><span class="code-box"></span><span class="code-box"></span>
 				<span class="code-box"></span><span class="code-box"></span><span class="code-box"></span>
 			</div>
 		</div>
 		${error ? `<p id="pin-error" class="alert" role="alert">${t.errors[error]}</p>` : ''}
+		<details class="own-app"${ownClientOpen}>
+			<summary>${t.ownApp.summary}</summary>
+			<p>${t.ownApp.intro(OWN_APP_GUIDE_URL)}</p>
+			<label for="client_id">${t.ownApp.clientId}</label>
+			<input id="client_id" name="client_id" type="text" maxlength="100" autocomplete="off" spellcheck="false"
+				value="${escape(form.clientId ?? '')}" placeholder="123456789012-abc….apps.googleusercontent.com"${clientInvalid}/>
+			<label for="client_secret">${t.ownApp.clientSecret}</label>
+			<input id="client_secret" name="client_secret" type="password" maxlength="128" autocomplete="off" spellcheck="false"${clientInvalid}/>
+			<p class="own-app-note">${t.ownApp.note}</p>
+		</details>
 		<button class="button primary block" type="submit">${t.index.continue}</button>
 	</form>
 

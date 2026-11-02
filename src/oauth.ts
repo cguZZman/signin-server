@@ -1,10 +1,14 @@
 import type { Env } from './env';
-import { toBase64url, type Tokens } from './state';
+import { type OwnClient, toBase64url, type Tokens } from './state';
 
 interface ProviderConfig {
 	// Extra parameters of the authorization request.
 	authorize: Record<string, string>;
+	// Users can sign in with their own OAuth app (e.g. a Google Cloud project of their own) instead of the service's:
+	// the format its client ID must have.
+	ownClientId?: RegExp;
 }
+
 
 const PROVIDERS: Record<string, ProviderConfig> = {
 	googledrive: {
@@ -13,6 +17,7 @@ const PROVIDERS: Record<string, ProviderConfig> = {
 			access_type: 'offline',
 			prompt: 'consent',
 		},
+		ownClientId: /^[0-9]{6,20}-[0-9a-z]{20,40}\.apps\.googleusercontent\.com$/,
 	},
 	onedrive: {
 		authorize: {
@@ -37,6 +42,17 @@ export function isProvider(name: string | null): name is string {
 // The app used before the current one: refresh tokens it issued only refresh with its own credentials.
 type App = '' | 'LEGACY_';
 
+/** Whether the provider's users can sign in with their own OAuth app. */
+export function ownClientSupported(provider: string): boolean {
+	return Boolean(PROVIDERS[provider]?.ownClientId);
+}
+
+/** Whether the client ID and secret the user entered look like the provider's. */
+export function validOwnClient(provider: string, ownClient: OwnClient): boolean {
+	const format = PROVIDERS[provider]?.ownClientId;
+	return Boolean(format?.test(ownClient.id) && /^[A-Za-z0-9_-]{8,128}$/.test(ownClient.secret));
+}
+
 function setting(env: Env, provider: string, name: string): string | undefined {
 	const value = env[`PROVIDER_${provider.toUpperCase()}_${name}`];
 	return value ? value : undefined;
@@ -51,10 +67,10 @@ export async function pkceChallenge(verifier: string): Promise<string> {
 	return toBase64url(new Uint8Array(digest));
 }
 
-export async function authorizeUrl(env: Env, provider: string, pin: string, codeVerifier: string): Promise<string> {
+export async function authorizeUrl(env: Env, provider: string, pin: string, codeVerifier: string, ownClient?: OwnClient): Promise<string> {
 	const url = new URL(setting(env, provider, 'URL_AUTHORIZE') ?? '');
 	const params = {
-		client_id: setting(env, provider, 'CLIENT_ID') ?? '',
+		client_id: ownClient?.id ?? setting(env, provider, 'CLIENT_ID') ?? '',
 		redirect_uri: callbackUrl(env),
 		state: pin,
 		response_type: 'code',
@@ -75,19 +91,17 @@ export class TokenError extends Error {
 		readonly error: string | undefined,
 		readonly description: string | undefined,
 		// The OAuth app whose token endpoint answered.
-		readonly app: 'current' | 'legacy' = 'current',
+		readonly app: 'current' | 'legacy' | 'own' = 'current',
 	) {
 		super(`${error ?? status}: ${description ?? ''}`);
 	}
 }
 
-export function exchangeCode(env: Env, provider: string, code: string, codeVerifier: string): Promise<Tokens> {
-	return tokenRequest(env, provider, '', {
-		grant_type: 'authorization_code',
-		code,
-		code_verifier: codeVerifier,
-		redirect_uri: callbackUrl(env),
-	});
+/** The tokens for the code. With the user's own app, they also carry its client_id and client_secret for Kodi. */
+export async function exchangeCode(env: Env, provider: string, code: string, codeVerifier: string, ownClient?: OwnClient): Promise<Tokens> {
+	const params = { grant_type: 'authorization_code', code, code_verifier: codeVerifier, redirect_uri: callbackUrl(env) };
+	const tokens = await tokenRequest(env, provider, '', params, ownClient);
+	return ownClient ? { ...tokens, client_id: ownClient.id, client_secret: ownClient.secret } : tokens;
 }
 
 /** Refreshes with the current app, and with the legacy app when the current one rejects the token. */
@@ -112,9 +126,9 @@ export async function refresh(env: Env, provider: string, refreshToken: string):
 	}
 }
 
-async function tokenRequest(env: Env, provider: string, app: App, params: Record<string, string>): Promise<Tokens> {
-	const body = new URLSearchParams({ client_id: setting(env, provider, `${app}CLIENT_ID`) ?? '' });
-	const secret = setting(env, provider, `${app}CLIENT_SECRET`);
+async function tokenRequest(env: Env, provider: string, app: App, params: Record<string, string>, ownClient?: OwnClient): Promise<Tokens> {
+	const body = new URLSearchParams({ client_id: ownClient?.id ?? setting(env, provider, `${app}CLIENT_ID`) ?? '' });
+	const secret = ownClient?.secret ?? setting(env, provider, `${app}CLIENT_SECRET`);
 	if (secret) {
 		body.set('client_secret', secret);
 	}
@@ -139,10 +153,10 @@ async function tokenRequest(env: Env, provider: string, app: App, params: Record
 	const code = typeof error.error === 'string' ? error.error : undefined;
 	const description = typeof error.error_description === 'string' ? truncate(error.error_description) : undefined;
 	console.warn(
-		`Token request failed: provider=${provider} app=${app ? 'legacy' : 'current'} grant_type=${params.grant_type} ` +
+		`Token request failed: provider=${provider} app=${ownClient ? 'own' : app ? 'legacy' : 'current'} grant_type=${params.grant_type} ` +
 			`status=${response.status} error=${code} description=${description}`,
 	);
-	throw new TokenError(response.status, code, description, app ? 'legacy' : 'current');
+	throw new TokenError(response.status, code, description, ownClient ? 'own' : app ? 'legacy' : 'current');
 }
 
 function truncate(text: string): string {

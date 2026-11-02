@@ -18,6 +18,13 @@ export const es: Messages = {
 			Inicias sesión en la propia página de Google, Microsoft o Dropbox: este sitio nunca te pide ni ve tu contraseña, y los complementos solo pueden leer tus archivos.
 			Es un proyecto de código abierto: <a href="${source}">código fuente</a>, <a href="/privacypolicy">política de privacidad</a>.`,
 	},
+	ownApp: {
+		summary: 'Google Drive: inicia sesión con tu propia app de Google (avanzado)',
+		intro: (guide) => `Crea un proyecto de Google Cloud para ti, como explica <a href="${guide}">esta guía</a>, e ingresa aquí su cliente OAuth. Kodi iniciará sesión con tu app en lugar de la de este servicio.`,
+		clientId: 'ID de cliente',
+		clientSecret: 'Secreto del cliente',
+		note: 'Tu secreto del cliente solo se guarda en memoria hasta que Kodi lo recoge, y nunca se almacena. Después, Kodi renueva tu sesión directamente con Google.',
+	},
 	help: {
 		summary: '¿Tienes problemas?',
 		network: 'Usa un teléfono o una computadora conectados a la misma red (Wi-Fi) que tu dispositivo Kodi.',
@@ -46,6 +53,9 @@ export const es: Messages = {
 	},
 	errors: {
 		'error.pin.invalid': 'Ese código no funcionó. Verifica que coincida con el de tu TV y que este dispositivo esté en la misma red que Kodi.',
+		'error.ownclient.invalid': 'Ese ID de cliente o secreto no parece correcto. Vuelve a copiarlos de tu cliente OAuth en Google Cloud Console.',
+		'error.ownclient.unsupported': 'Tu propia app solo se puede usar con el complemento Google Drive, versión 1.6.13 o posterior. Actualiza el complemento o deja estos campos vacíos.',
+		'error.ownclient.rejected': 'Google rechazó tu ID de cliente o secreto. Vuelve a copiarlos de tu cliente OAuth en Google Cloud Console y empieza de nuevo desde Kodi.',
 		'failure.denied': 'No se concedió el acceso. Kodi necesita tu permiso para leer tus archivos.',
 		'failure.code.1': 'Tu código ya no es válido.',
 		'failure.code.2': 'No se pudo obtener la autorización del proveedor. Es posible que tu cuenta no tenga una unidad.',
@@ -78,7 +88,7 @@ export const es: Messages = {
 		title: 'Política de privacidad',
 		body: (source) => `
 	<h1>Política de privacidad</h1>
-	<p class="meta">Última actualización: 14 de octubre de 2026</p>
+	<p class="meta">Última actualización: 2 de noviembre de 2026</p>
 	<p class="meta">Esta es una traducción. Si hay alguna diferencia, prevalece la <a href="/privacypolicy?lang=en">versión original en inglés</a>.</p>
 
 	<p>
@@ -151,6 +161,13 @@ export const es: Messages = {
 		Aproximadamente una vez por hora, tu dispositivo Kodi envía su token de actualización a este servidor. El servidor agrega las
 		credenciales de la aplicación, reenvía la solicitud a Google, Microsoft o Dropbox y devuelve el nuevo token de acceso a tu dispositivo. No
 		guarda los tokens ni los registra.
+	</p>
+	<h3>Tu propia app de Google</h3>
+	<p>
+		Si eliges iniciar sesión en Google Drive con tu propia app de Google Cloud, ingresas su ID de cliente y su secreto en la página del código.
+		El servidor los usa solo para ese inicio de sesión y se los entrega a tu dispositivo Kodi junto con los tokens. Igual que los tokens, se
+		guardan <strong>en memoria</strong> durante 3 minutos como máximo y nunca se escriben en disco ni en registros. Después, tu dispositivo Kodi
+		renueva tu sesión directamente con Google, sin este servidor.
 	</p>
 	<h3>Protección contra abusos</h3>
 	<p>

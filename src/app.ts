@@ -1,12 +1,12 @@
 import type { Env, Store } from './env';
 import { type Messages, messages, negotiate } from './i18n';
-import { authorizeUrl, exchangeCode, isProvider, refresh, TokenError } from './oauth';
+import { authorizeUrl, exchangeCode, isProvider, ownClientSupported, refresh, TokenError, validOwnClient } from './oauth';
 import { accessUser } from './access';
 import { usageErrorPage, usagePage } from './dashboard';
 import { driveMetrics } from './google';
 import { closedPage, continuePage, failurePage, indexPage, notFoundPage, privacyPage, successPage, tooManyPage } from './pages';
 import { loadReport, PERIODS, sqlApi } from './report';
-import { ipv6Groups, type Limit, type Rejection } from './state';
+import { ipv6Groups, type Limit, type OwnClient, type Rejection } from './state';
 import { clientInfo, ingest, record, type UsageEvent } from './usage';
 
 /** Records a usage event with the request's country and client. */
@@ -113,7 +113,10 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 		return html(indexPage(t, sourceId(client)));
 	}
 	if (path === '/authorize') {
-		return signin(env, store, t, track, client, (await params(request)).get('pin') ?? '', request.method === 'POST');
+		const form = await params(request);
+		const post = request.method === 'POST';
+		const ownClient = post ? { id: form.get('client_id') ?? '', secret: form.get('client_secret') ?? '' } : undefined;
+		return signin(env, store, t, track, client, form.get('pin') ?? '', post, ownClient?.id || ownClient?.secret ? ownClient : undefined);
 	}
 	if (path.startsWith('/signin/')) {
 		return signin(env, store, t, track, client, path.slice('/signin/'.length));
@@ -134,13 +137,15 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 		return html(closedPage(t, env.SITE_URL));
 	}
 	if (path === '/pin' && request.method === 'POST') {
-		const provider = (await params(request)).get('provider');
+		const form = await params(request);
+		const provider = form.get('provider');
 		if (!isProvider(provider)) {
 			track({ event: 'pin', outcome: 'invalid_provider' });
 			return json({ status: 400, error: 'Invalid provider' }, 400);
 		}
 		track({ event: 'pin', provider, outcome: 'created' });
-		return json(await store.createPin(provider, client));
+		// Add-on versions that refresh the tokens of the user's own OAuth app say so.
+		return json(await store.createPin(provider, client, form.get('own_client') === '1' && ownClientSupported(provider)));
 	}
 	if (path.startsWith('/pin/') && read) {
 		const collected = await store.collect(path.slice('/pin/'.length), basicPassword(request), client);
@@ -225,16 +230,41 @@ async function usage(env: Env, request: Request, t: Messages): Promise<Response>
 }
 
 /** Sends the browser to the provider when the code exists and was created from this network. */
-async function signin(env: Env, store: Store, t: Messages, track: Track, client: string, pin: string, fromForm = false): Promise<Response> {
+/**
+ * Starts the sign-in for a code from Kodi. ownClient: the client ID and secret the user entered to sign in with their
+ * own OAuth app (only from the form, so the secret is never in a URL).
+ */
+async function signin(
+	env: Env,
+	store: Store,
+	t: Messages,
+	track: Track,
+	client: string,
+	pin: string,
+	fromForm = false,
+	ownClient?: OwnClient,
+): Promise<Response> {
 	// The letter O is a common typo for zero: codes are hexadecimal.
 	const code = pin.trim().toUpperCase().replace(/O/g, '0');
-	const started = code ? await store.startSignin(code, client) : null;
+	const own = ownClient ? { id: ownClient.id.trim(), secret: ownClient.secret.trim() } : undefined;
+	// The form again, with the code and the client ID (never the secret).
+	const form = { pin: code.slice(0, 6), clientId: own?.id.slice(0, 100) };
+	const started = code ? await store.startSignin(code, client, own) : null;
 	if (!started) {
 		track({ event: 'signin_start', outcome: 'invalid_code' });
-		return html(indexPage(t, sourceId(client), code.slice(0, 6), 'error.pin.invalid'));
+		return html(indexPage(t, sourceId(client), form, 'error.pin.invalid'));
 	}
-	track({ event: 'signin_start', provider: started.provider, outcome: 'redirected' });
-	const url = await authorizeUrl(env, started.provider, code, started.codeVerifier);
+	if (started.status === 'own-client-unsupported') {
+		track({ event: 'signin_start', provider: started.provider, app: 'own', outcome: 'own_client_unsupported' });
+		return html(indexPage(t, sourceId(client), form, 'error.ownclient.unsupported'));
+	}
+	// The provider is only known from the code: the ID and secret are checked against its formats now.
+	if (started.ownClient && !validOwnClient(started.provider, started.ownClient)) {
+		track({ event: 'signin_start', provider: started.provider, app: 'own', outcome: 'invalid_own_client' });
+		return html(indexPage(t, sourceId(client), form, 'error.ownclient.invalid'));
+	}
+	track({ event: 'signin_start', provider: started.provider, app: started.ownClient ? 'own' : undefined, outcome: 'redirected' });
+	const url = await authorizeUrl(env, started.provider, code, started.codeVerifier, started.ownClient);
 	const response = fromForm ? html(continuePage(t, started.provider, url)) : redirect(url, 302);
 	response.headers.append('Set-Cookie', signinCookie(started.browserNonce, SIGNIN_COOKIE_AGE_S));
 	return response;
@@ -269,22 +299,24 @@ async function callback(env: Env, store: Store, t: Messages, track: Track, reque
 	const clearCookie = signinCookie('', 0);
 	let page: Response;
 	try {
-		const tokens = await exchangeCode(env, finished.provider, code, finished.codeVerifier);
+		const tokens = await exchangeCode(env, finished.provider, code, finished.codeVerifier, finished.ownClient);
 		const stored = await store.storeTokens(state, tokens);
-		track({ event: 'signin', provider: finished.provider, outcome: stored ? 'completed' : 'expired' });
+		const app = finished.ownClient ? 'own' : undefined;
+		track({ event: 'signin', provider: finished.provider, app, outcome: stored ? 'completed' : 'expired' });
 		page = stored ? redirect('/auth-success', 302) : html(failurePage(t, { message: 'failure.code.1' }));
 	} catch (e) {
 		if (!(e instanceof TokenError)) {
 			throw e;
 		}
-		track({ event: 'signin', provider: finished.provider, outcome: 'exchange_failed', error: e.error ?? String(e.status) });
-		page = html(failurePage(t, { message: 'failure.code.2', text: e.error ? `(${e.error})` : undefined }));
+		track({ event: 'signin', provider: finished.provider, app: e.app, outcome: 'exchange_failed', error: e.error ?? String(e.status) });
+		// invalid_client: the secret doesn't belong to the user's own app.
+		const message = finished.ownClient && e.error === 'invalid_client' ? 'error.ownclient.rejected' : 'failure.code.2';
+		page = html(failurePage(t, { message, text: e.error ? `(${e.error})` : undefined }));
 	}
 	page.headers.append('Set-Cookie', clearCookie);
 	return page;
 }
 
-/** Daily active accounts: the sum of these events per day. Only a count is recorded, never the hash. Never fails the request. */
 /** The provider's earlier refusal of a refresh token. Remembering is only a saving: failures are logged and ignored. */
 async function remembered(store: Store, key: string): Promise<Rejection | null> {
 	try {
@@ -303,6 +335,7 @@ async function remember(store: Store, key: string, rejection: Rejection): Promis
 	}
 }
 
+/** Daily active accounts: the sum of these events per day. Only a count is recorded, never the hash. Never fails the request. */
 async function countActive(store: Store, track: Track, provider: string, app: string, tokenHash: string | null): Promise<void> {
 	if (!tokenHash) {
 		return;

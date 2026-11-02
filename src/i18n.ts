@@ -6,7 +6,16 @@ import { pt } from './messages/pt';
 export const LANGUAGES = ['en', 'es', 'pt'] as const;
 export type Lang = (typeof LANGUAGES)[number];
 
-export type ErrorMessage = 'error.pin.invalid' | 'failure.denied' | 'failure.code.1' | 'failure.code.2' | 'failure.code.3' | 'failure.code.4';
+export type ErrorMessage =
+	| 'error.pin.invalid'
+	| 'error.ownclient.invalid'
+	| 'error.ownclient.unsupported'
+	| 'error.ownclient.rejected'
+	| 'failure.denied'
+	| 'failure.code.1'
+	| 'failure.code.2'
+	| 'failure.code.3'
+	| 'failure.code.4';
 
 /**
  * The texts of every page. Plain strings are inserted as they are (they may contain HTML, they are ours);
@@ -30,6 +39,15 @@ export interface Messages {
 		aboutSummary: string;
 		// HTML. source: the source code URL.
 		about: (source: string) => string;
+	};
+	// Signing in with the user's own OAuth app (Google Drive only).
+	ownApp: {
+		summary: string;
+		// HTML. guide: the guide's URL.
+		intro: (guide: string) => string;
+		clientId: string;
+		clientSecret: string;
+		note: string;
 	};
 	help: {
 		summary: string;

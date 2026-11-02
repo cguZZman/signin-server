@@ -9,6 +9,12 @@ const SWEEP_INTERVAL_MS = 10 * 1000;
 
 export type Tokens = Record<string, unknown>;
 
+/** The user's own OAuth app (see oauth.ts). The secret is only kept in memory, with the code. */
+export interface OwnClient {
+	id: string;
+	secret: string;
+}
+
 interface Pin {
 	pin: string;
 	password: string;
@@ -21,6 +27,10 @@ interface Pin {
 	browserNonce?: string;
 	codeVerifier?: string;
 	tokens?: Tokens;
+	// The add-on that created the code can refresh the tokens of the user's own OAuth app.
+	ownClientSupported: boolean;
+	// The user's own OAuth app, when they chose to sign in with it.
+	ownClient?: OwnClient;
 }
 
 export interface CreatedPin {
@@ -30,14 +40,13 @@ export interface CreatedPin {
 	owner: string;
 }
 
-export interface StartedSignin {
-	provider: string;
-	browserNonce: string;
-	codeVerifier: string;
-}
+export type StartedSignin =
+	| { status: 'ok'; provider: string; browserNonce: string; codeVerifier: string; ownClient?: OwnClient }
+	// The user chose their own OAuth app, but the add-on that created the code can't refresh its tokens.
+	| { status: 'own-client-unsupported'; provider: string };
 
 export type FinishedSignin =
-	| { status: 'ok'; provider: string; codeVerifier: string }
+	| { status: 'ok'; provider: string; codeVerifier: string; ownClient?: OwnClient }
 	| { status: 'expired' }
 	| { status: 'other-browser' };
 
@@ -75,26 +84,40 @@ export class SigninState {
 
 	constructor(private readonly now: () => number = Date.now) {}
 
-	createPin(provider: string, owner: string): CreatedPin {
+	createPin(provider: string, owner: string, ownClientSupported = false): CreatedPin {
 		this.sweep();
 		let pin: string;
 		do {
 			pin = hex(3).toUpperCase();
 		} while (this.pins.has(pin));
 		const created = { pin, password: hex(256), provider, owner };
-		this.pins.set(pin, { pin, password: created.password, provider, owners: new Set([network(owner)]), expires: this.now() + PIN_LIFETIME_MS });
+		this.pins.set(pin, {
+			pin,
+			password: created.password,
+			provider,
+			owners: new Set([network(owner)]),
+			expires: this.now() + PIN_LIFETIME_MS,
+			ownClientSupported,
+		});
 		return created;
 	}
 
-	/** Starts the sign-in in a browser on the Kodi device's network. Null when the code is unknown or from another network. */
-	startSignin(pin: string, client: string): StartedSignin | null {
+	/**
+	 * Starts the sign-in in a browser on the Kodi device's network, with the service's OAuth app or the user's own.
+	 * Null when the code is unknown or from another network.
+	 */
+	startSignin(pin: string, client: string, ownClient?: OwnClient): StartedSignin | null {
 		const stored = this.get(pin);
 		if (!stored || !stored.owners.has(network(client))) {
 			return null;
 		}
+		if (ownClient && !stored.ownClientSupported) {
+			return { status: 'own-client-unsupported', provider: stored.provider };
+		}
 		stored.browserNonce = base64url(32);
 		stored.codeVerifier = base64url(32);
-		return { provider: stored.provider, browserNonce: stored.browserNonce, codeVerifier: stored.codeVerifier };
+		stored.ownClient = ownClient;
+		return { status: 'ok', provider: stored.provider, browserNonce: stored.browserNonce, codeVerifier: stored.codeVerifier, ownClient };
 	}
 
 	/** Accepts the provider's callback once, and only in the browser that started the sign-in. */
@@ -108,7 +131,7 @@ export class SigninState {
 		}
 		// Single use: a second callback for this code is rejected.
 		stored.browserNonce = undefined;
-		return { status: 'ok', provider: stored.provider, codeVerifier: stored.codeVerifier };
+		return { status: 'ok', provider: stored.provider, codeVerifier: stored.codeVerifier, ownClient: stored.ownClient };
 	}
 
 	storeTokens(pin: string, tokens: Tokens): boolean {

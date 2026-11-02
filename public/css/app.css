@@ -371,6 +371,58 @@ h2 {
 	margin: 20px 0 0;
 }
 
+/* Own Google app: optional client ID and secret in the code form */
+
+.own-app {
+	margin: 0 0 16px;
+	font-size: 0.9375rem;
+	color: var(--muted);
+	text-align: left;
+}
+
+.own-app summary {
+	cursor: pointer;
+	color: var(--text);
+	font-weight: 600;
+}
+
+.own-app p {
+	margin: 12px 0;
+}
+
+.own-app label {
+	display: block;
+	margin: 12px 0 4px;
+	color: var(--text);
+	font-weight: 600;
+}
+
+.own-app input {
+	display: block;
+	width: 100%;
+	padding: 10px 12px;
+	border: 2px solid var(--border);
+	border-radius: 10px;
+	background: var(--surface);
+	color: var(--text);
+	font: 0.9375rem/1.3 var(--mono);
+}
+
+.own-app input:focus {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 4px var(--focus);
+}
+
+.own-app input[aria-invalid="true"] {
+	border-color: var(--danger);
+}
+
+.own-app .own-app-note {
+	margin-bottom: 0;
+	font-size: 0.875rem;
+}
+
 /* Help disclosure */
 
 .help {

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SIGNIN_COOKIE } from '../src/app';
+import { en } from '../src/messages/en';
 import { PIN_LIFETIME_MS, REJECTION_LIFETIME_MS, SigninState } from '../src/state';
 import { basic, CALLBACK, cookieValue, MockTokenEndpoint, s256, Server, testEnv } from './helpers';
 
@@ -224,6 +225,78 @@ describe('sign-in', () => {
 		expect(page.headers.get('Set-Cookie')).toContain('Max-Age=0');
 		expect((await server.get(`/pin/${pin}`, { headers: basic(password) })).status).toBe(202);
 		expect(warn.mock.calls.join('\n')).not.toContain('bad-code');
+	});
+});
+
+describe('sign-in with your own Google app', () => {
+	const OWN_ID = '123456789012-abcdefghijklmnopqrstuvwxyz012345.apps.googleusercontent.com';
+	const OWN_SECRET = 'GOCSPX-own_secret-value';
+
+	async function ownPin(provider = 'googledrive', ownClient = true): Promise<{ pin: string; password: string }> {
+		return (await (await server.post('/pin', ownClient ? { provider, own_client: '1' } : { provider })).json()) as { pin: string; password: string };
+	}
+
+	function submit(pin: string, id = OWN_ID, secret = OWN_SECRET): Promise<Response> {
+		return server.post('/authorize', { pin, client_id: id, client_secret: secret });
+	}
+
+	it('signs in with it and hands Kodi its credentials with the tokens', async () => {
+		const logs = ['log', 'warn', 'error'].map((level) => vi.spyOn(console, level as 'log').mockImplementation(() => {}));
+		const { pin, password } = await ownPin();
+		const answer = await submit(pin);
+		expect(answer.status).toBe(200);
+		const page = await answer.text();
+		const target = new URL(/<meta http-equiv="refresh" content="0; url=([^"]+)"/.exec(page)?.[1]?.replace(/&amp;/g, '&') ?? '');
+		expect(target.searchParams.get('client_id')).toBe(OWN_ID);
+		expect(page).not.toContain(OWN_SECRET);
+
+		const back = await callback('GET', pin, 'the-code', cookieValue(answer.headers.get('Set-Cookie') ?? ''));
+		expect(back.headers.get('Location')).toBe('/auth-success');
+		expect(tokens.last()).toMatchObject({ grant_type: 'authorization_code', client_id: OWN_ID, client_secret: OWN_SECRET });
+
+		const collected = await server.get(`/pin/${pin}`, { headers: basic(password) });
+		expect(await collected.json()).toMatchObject({ access_token: 'AT', refresh_token: 'RT', client_id: OWN_ID, client_secret: OWN_SECRET });
+		expect(logs.flatMap((spy) => spy.mock.calls).join('\n')).not.toContain(OWN_SECRET);
+	});
+
+	it('needs an add-on version that refreshes its tokens, and Google Drive', async () => {
+		for (const { pin } of [await ownPin('googledrive', false), await ownPin('onedrive')]) {
+			const page = await (await submit(pin)).text();
+			expect(page).toContain(en.errors['error.ownclient.unsupported']);
+			expect(page, 'the form keeps the client ID').toContain(OWN_ID);
+			expect(page, 'but never the secret').not.toContain(OWN_SECRET);
+		}
+	});
+
+	it('checks the client ID and secret look like Google\'s', async () => {
+		const { pin } = await ownPin();
+		for (const [id, secret] of [
+			['not-a-client-id', OWN_SECRET],
+			[OWN_ID, 'bad secret!'],
+			[OWN_ID, ''],
+		] as const) {
+			const answer = await submit(pin, id, secret);
+			expect(answer.headers.get('Set-Cookie')).toBeNull();
+			expect(await answer.text()).toContain(en.errors['error.ownclient.invalid']);
+		}
+	});
+
+	it("explains when Google rejects the app's secret", async () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const { pin } = await ownPin();
+		const answer = await submit(pin);
+		vi.stubGlobal('fetch', async () => Response.json({ error: 'invalid_client', error_description: 'Unauthorized' }, { status: 401 }));
+		const back = await callback('GET', pin, 'the-code', cookieValue(answer.headers.get('Set-Cookie') ?? ''));
+		expect(await back.text()).toContain(en.errors['error.ownclient.rejected']);
+	});
+
+	it("uses the service's app when the fields are empty, or in a link", async () => {
+		const { pin } = await ownPin();
+		const answer = await submit(pin, '', '');
+		const page = await answer.text();
+		expect(/client_id=([^&"]+)/.exec(page)?.[1]).toBe('googledrive-client');
+		const link = await server.get(`/signin/${pin}?client_id=${OWN_ID}&client_secret=${OWN_SECRET}`);
+		expect(new URL(link.headers.get('Location') ?? '').searchParams.get('client_id')).toBe('googledrive-client');
 	});
 });
 

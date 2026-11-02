@@ -17,6 +17,13 @@ export const en: Messages = {
 			You sign in on Google's, Microsoft's or Dropbox's own page; this site never asks for or sees your password, and the add-ons can only read your files.
 			It is an open-source project: <a href="${source}">source code</a>, <a href="/privacypolicy">privacy policy</a>.`,
 	},
+	ownApp: {
+		summary: 'Google Drive: sign in with your own Google app (advanced)',
+		intro: (guide) => `Create a Google Cloud project for yourself, as <a href="${guide}">this guide</a> explains, and enter its OAuth client here. Kodi will sign in with your app instead of this service's.`,
+		clientId: 'Client ID',
+		clientSecret: 'Client secret',
+		note: "Your client secret is only kept in memory until Kodi collects it, and is never stored. Kodi then renews your sign-in with Google directly.",
+	},
 	help: {
 		summary: 'Having trouble?',
 		network: 'Use a phone or computer on the same network (Wi-Fi) as your Kodi device.',
@@ -45,6 +52,9 @@ export const en: Messages = {
 	},
 	errors: {
 		'error.pin.invalid': "That code didn't work. Check it matches the one on your TV, and that this device is on the same network as Kodi.",
+		'error.ownclient.invalid': "That client ID or secret doesn't look right. Copy them again from your OAuth client in Google Cloud Console.",
+		'error.ownclient.unsupported': 'Your own app can only be used with the Google Drive add-on, version 1.6.13 or later. Update the add-on, or leave these fields empty.',
+		'error.ownclient.rejected': 'Google rejected your client ID or secret. Copy them again from your OAuth client in Google Cloud Console, and start again from Kodi.',
 		'failure.denied': 'Access was not granted. Kodi needs your permission to read your files.',
 		'failure.code.1': 'Your code is no longer valid.',
 		'failure.code.2': "Couldn't get authorization from the provider. Your account may not have a drive.",
@@ -77,7 +87,7 @@ export const en: Messages = {
 		title: 'Privacy policy',
 		body: (source) => `
 	<h1>Privacy policy</h1>
-	<p class="meta">Last updated: October 14, 2026</p>
+	<p class="meta">Last updated: November 2, 2026</p>
 
 	<p>
 		This policy covers the <strong>Google Drive</strong>, <strong>OneDrive</strong> and <strong>Dropbox</strong> add-ons for Kodi and this sign-in service.
@@ -149,6 +159,13 @@ export const en: Messages = {
 		About once an hour, your Kodi device sends its refresh token to this server. The server adds the application's credentials,
 		forwards the request to Google, Microsoft or Dropbox, and returns the new access token to your device. It does not keep or log the
 		tokens.
+	</p>
+	<h3>Your own Google app</h3>
+	<p>
+		If you choose to sign in to Google Drive with your own Google Cloud app, you enter its client ID and client secret on the code page.
+		The server uses them for that sign-in only, and hands them to your Kodi device with the tokens. Like the tokens, they are held
+		<strong>in memory</strong> for at most 3 minutes and are never written to disk or to logs. Your Kodi device then renews your sign-in
+		with Google directly, without this server.
 	</p>
 	<h3>Abuse protection</h3>
 	<p>
