@@ -186,11 +186,11 @@ The page language follows the browser's `Accept-Language` (English, Spanish or P
 
 | Endpoint | Used by | Purpose |
 |---|---|---|
-| `POST /pin` | Kodi | Create a sign-in code |
+| `POST /pin` | Kodi | Create a sign-in code (`own_client=1`: the add-on can refresh the tokens of the user's own OAuth app) |
 | `GET /pin/{code}` | Kodi | Collect the tokens once the sign-in is done |
 | `POST /refresh` | Kodi | Refresh an access token |
 | `GET /ip` | Kodi | Show the public IP the service sees (troubleshooting) |
-| `GET /`, `POST /authorize`, `GET /signin/{code}` | Browser | Enter the code (form or QR link) and go to the provider |
+| `GET /`, `POST /authorize`, `GET /signin/{code}` | Browser | Enter the code (form or QR link), optionally with the client ID and secret of the user's own app (form only), and go to the provider |
 | `GET` or `POST /callback` | Provider | Return from the sign-in |
 | `GET /privacypolicy` | Browser | Privacy policy |
 | `POST /ingest/usage` | drive-login | Usage summaries from the older sign-in server, signed with HMAC-SHA256 (`X-Usage-Signature`) |

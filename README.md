@@ -16,6 +16,8 @@ It replaces [drive-login](https://github.com/cguZZman/drive-login), the earlier 
 4. Kodi polls the service (`GET /pin/{code}`) with a random secret only it knows, receives the tokens and stores them on the device.
 5. About once an hour, the add-on refreshes its access token through the service (`POST /refresh`), which adds the client secret and forwards the request to the provider.
 
+**Your own Google app.** Google Drive users can sign in with an OAuth client of their own Google Cloud project instead of the service's: they enter its client ID and secret with the code (the form's optional section). The service signs in with that client and hands Kodi its credentials with the tokens; Kodi then refreshes them with Google itself, not through the service. Only add-on versions that can do so offer it, by creating the code with `own_client=1`.
+
 File contents never go through this service: Kodi talks to Google, Microsoft and Dropbox directly. The service keeps no database and doesn't write or log tokens.
 
 Codes and rate-limit counters live in the memory of a single [Durable Object](https://developers.cloudflare.com/durable-objects/), so every request sees the same codes wherever it reaches Cloudflare. Nothing is written to its storage.
