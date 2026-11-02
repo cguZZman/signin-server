@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SIGNIN_COOKIE } from '../src/app';
-import { PIN_LIFETIME_MS, SigninState } from '../src/state';
+import { PIN_LIFETIME_MS, REJECTION_LIFETIME_MS, SigninState } from '../src/state';
 import { basic, CALLBACK, cookieValue, MockTokenEndpoint, s256, Server, testEnv } from './helpers';
 
 // End-to-end check of the sign-in: code creation, the redirect to the provider, the callback, token pickup by
@@ -281,6 +281,46 @@ describe('refresh', () => {
 		expect(logged).toContain('provider=onedrive app=current grant_type=refresh_token status=400');
 		expect(logged).toContain('provider=onedrive app=legacy grant_type=refresh_token status=401');
 		expect(logged).not.toContain('bad-token');
+	});
+
+	it('answers a refused token again for a day without asking the provider', async () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => {});
+		let now = Date.now();
+		server = new Server(testEnv(), new SigninState(() => now));
+		for (const [refreshToken, status, error] of [
+			['bad-token', 400, 'invalid_grant'],
+			['legacy-RT', 401, 'unauthorized_client'],
+		] as const) {
+			tokens.forms = [];
+			for (let i = 0; i < 3; i++) {
+				const response = await server.post('/refresh', { provider: 'googledrive', refresh_token: refreshToken });
+				expect(response.status).toBe(status);
+				expect(await response.json()).toMatchObject({ error });
+			}
+			expect(tokens.forms, `${refreshToken}: asked once`).toHaveLength(1);
+		}
+		tokens.forms = [];
+		expect((await server.post('/refresh', { provider: 'onedrive', refresh_token: 'bad-token' })).status, 'per provider').toBe(400);
+		expect(tokens.forms.length).toBeGreaterThan(0);
+		expect((await server.post('/refresh', { provider: 'googledrive', refresh_token: 'RT' })).status, 'other tokens').toBe(200);
+
+		tokens.forms = [];
+		now += REJECTION_LIFETIME_MS;
+		expect((await server.post('/refresh', { provider: 'googledrive', refresh_token: 'bad-token' })).status).toBe(400);
+		expect(tokens.forms, 'asked again a day later').toHaveLength(1);
+	});
+
+	it('asks again after errors about its own credentials', async () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => {});
+		let calls = 0;
+		vi.stubGlobal('fetch', async () => {
+			calls++;
+			return Response.json({ error: 'invalid_client', error_description: 'The OAuth client was not found.' }, { status: 401 });
+		});
+		for (let i = 0; i < 2; i++) {
+			expect((await server.post('/refresh', { provider: 'googledrive', refresh_token: 'RT' })).status).toBe(401);
+		}
+		expect(calls).toBe(2);
 	});
 
 	it("reports the legacy app's error for a revoked legacy token", async () => {

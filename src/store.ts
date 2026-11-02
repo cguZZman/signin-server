@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import type { Env } from './env';
-import { type Limit, SigninState, type Tokens } from './state';
+import { type Limit, type Rejection, SigninState, type Tokens } from './state';
 
 /**
  * The single instance holding the sign-in codes and rate-limit counters, in memory only. Kodi polls every
@@ -31,6 +31,14 @@ export class SigninStore extends DurableObject<Env> {
 
 	firstToday(key: string) {
 		return this.state.firstToday(key);
+	}
+
+	reject(key: string, rejection: Rejection) {
+		return this.state.reject(key, rejection);
+	}
+
+	rejection(key: string) {
+		return this.state.rejection(key);
 	}
 
 	acquire(limits: Limit[]) {

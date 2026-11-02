@@ -6,7 +6,7 @@ import { usageErrorPage, usagePage } from './dashboard';
 import { driveMetrics } from './google';
 import { closedPage, continuePage, failurePage, indexPage, notFoundPage, privacyPage, successPage, tooManyPage } from './pages';
 import { loadReport, PERIODS, sqlApi } from './report';
-import { ipv6Groups, type Limit } from './state';
+import { ipv6Groups, type Limit, type Rejection } from './state';
 import { clientInfo, ingest, record, type UsageEvent } from './usage';
 
 /** Records a usage event with the request's country and client. */
@@ -21,6 +21,10 @@ const SIGNIN_COOKIE_AGE_S = 5 * 60;
 const OLD_SERVER = 'https://drive-login.herokuapp.com';
 const CLOSED_PAGE = '/drive-login-closed';
 const RETRY_AFTER_S = 60;
+// Refresh errors that don't change until the user signs in again (revoked or expired token, token of another or a
+// deleted app). Errors about this service's own credentials (invalid_client) are not remembered: fixing them must
+// work at once.
+const FINAL_REFRESH_ERRORS = new Set(['invalid_grant', 'unauthorized_client', 'deleted_client']);
 
 // No inline scripts or styles anywhere, and forms only post to this site: /authorize answers the code form with a
 // page that refreshes to the provider (continuePage). public/_headers sets the same headers on static files.
@@ -157,6 +161,12 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 		if (!isProvider(provider) || !refreshToken) {
 			return json({ status: 400, error: 'Provider and refresh token required' }, 400);
 		}
+		const rejectionKey = tokenHash ? `${provider}:${tokenHash}` : null;
+		const rejected = rejectionKey ? await remembered(store, rejectionKey) : null;
+		if (rejected) {
+			track({ event: 'refresh', provider, app: rejected.app, outcome: 'failed', error: `${rejected.error} (repeated)` });
+			return json({ status: rejected.status, error: rejected.error }, rejected.status);
+		}
 		try {
 			const refreshed = await refresh(env, provider, refreshToken);
 			track({ event: 'refresh', provider, app: refreshed.app, outcome: 'ok' });
@@ -171,7 +181,11 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 				error: e instanceof TokenError ? (e.error ?? String(e.status)) : 'server_error',
 			});
 			if (e instanceof TokenError && e.status >= 400 && e.status < 500) {
-				return json({ status: e.status, error: e.error ?? 'Token request failed' }, e.status);
+				const error = e.error ?? 'Token request failed';
+				if (rejectionKey && FINAL_REFRESH_ERRORS.has(error)) {
+					await remember(store, rejectionKey, { status: e.status, error, app: e.app });
+				}
+				return json({ status: e.status, error }, e.status);
 			}
 			// The provider didn't answer, or failed. The add-ons retry on 503 (and give up on other errors).
 			console.error(`Refresh failed: provider=${provider} ${e instanceof Error ? e.message : e}`);
@@ -271,6 +285,24 @@ async function callback(env: Env, store: Store, t: Messages, track: Track, reque
 }
 
 /** Daily active accounts: the sum of these events per day. Only a count is recorded, never the hash. Never fails the request. */
+/** The provider's earlier refusal of a refresh token. Remembering is only a saving: failures are logged and ignored. */
+async function remembered(store: Store, key: string): Promise<Rejection | null> {
+	try {
+		return await store.rejection(key);
+	} catch (e) {
+		console.error(`Refresh rejection not read: ${e instanceof Error ? e.message : e}`);
+		return null;
+	}
+}
+
+async function remember(store: Store, key: string, rejection: Rejection): Promise<void> {
+	try {
+		await store.reject(key, rejection);
+	} catch (e) {
+		console.error(`Refresh rejection not remembered: ${e instanceof Error ? e.message : e}`);
+	}
+}
+
 async function countActive(store: Store, track: Track, provider: string, app: string, tokenHash: string | null): Promise<void> {
 	if (!tokenHash) {
 		return;

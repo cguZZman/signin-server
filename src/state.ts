@@ -3,6 +3,8 @@
 
 export const PIN_LIFETIME_MS = 3 * 60 * 1000;
 export const RATE_WINDOW_MS = 60 * 1000;
+// How long a refresh token the provider refused is answered without asking the provider again.
+export const REJECTION_LIFETIME_MS = 24 * 60 * 60 * 1000;
 const SWEEP_INTERVAL_MS = 10 * 1000;
 
 export type Tokens = Record<string, unknown>;
@@ -44,6 +46,13 @@ export type Collected =
 	| { status: 202 }
 	| { status: 404 };
 
+/** The provider's answer when it refused to refresh a token. */
+export interface Rejection {
+	status: number;
+	error: string;
+	app: string;
+}
+
 /** A rate limit: requests per minute for a key. A limit of 0 or less is no limit. */
 export interface Limit {
 	name: string;
@@ -56,6 +65,9 @@ export class SigninState {
 	// Fixed windows: a counter expires one window after its first request.
 	private readonly counters = new Map<string, { count: number; expires: number }>();
 	private nextSweep = 0;
+	// Refresh tokens (provider and hash) the provider refused for good: Kodi keeps asking with them until the user
+	// signs in again, and the provider would only refuse again.
+	private readonly rejections = new Map<string, Rejection & { expires: number }>();
 	// Accounts (hashes of refresh tokens) that refreshed today, UTC: only to count each account once a day.
 	// Memory only, emptied when the day changes.
 	private activeDay = '';
@@ -139,6 +151,21 @@ export class SigninState {
 		return true;
 	}
 
+	/** Remembers, for REJECTION_LIFETIME_MS, that the provider refused the token of the key (a provider and token hash). */
+	reject(key: string, rejection: Rejection): void {
+		this.sweep();
+		this.rejections.set(key, { ...rejection, expires: this.now() + REJECTION_LIFETIME_MS });
+	}
+
+	/** The provider's earlier refusal of the key's token, while it's remembered; null otherwise. */
+	rejection(key: string): Rejection | null {
+		const stored = this.rejections.get(key);
+		if (!stored || stored.expires <= this.now()) {
+			return null;
+		}
+		return { status: stored.status, error: stored.error, app: stored.app };
+	}
+
 	/** Counts a request against each limit. Returns the name of the first exceeded limit, or null. */
 	acquire(limits: Limit[]): string | null {
 		this.sweep();
@@ -182,6 +209,11 @@ export class SigninState {
 		for (const [key, counter] of this.counters) {
 			if (counter.expires <= now) {
 				this.counters.delete(key);
+			}
+		}
+		for (const [key, rejection] of this.rejections) {
+			if (rejection.expires <= now) {
+				this.rejections.delete(key);
 			}
 		}
 	}
