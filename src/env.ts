@@ -37,4 +37,7 @@ export interface Env {
 type Async<T> = { [K in keyof T]: T[K] extends (...args: infer A) => infer R ? (...args: A) => Promise<R> | R : never };
 
 /** SigninState's methods, called on the Durable Object in production or directly in tests. */
-export type Store = Async<Pick<SigninState, 'createPin' | 'startSignin' | 'finishSignin' | 'storeTokens' | 'collect' | 'acquire' | 'firstToday' | 'reject' | 'rejection'>>;
+export type Store = Async<Pick<SigninState, 'createPin' | 'startSignin' | 'finishSignin' | 'storeTokens' | 'collect' | 'acquire' | 'firstToday'>>;
+
+/** Refresh tokens the provider refused: the Cache API in production (rejections.ts), SigninState in tests. */
+export type Rejections = Async<Pick<SigninState, 'reject' | 'rejection'>>;

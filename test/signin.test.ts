@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SIGNIN_COOKIE } from '../src/app';
 import { en } from '../src/messages/en';
+import { cacheRejections } from '../src/rejections';
 import { PIN_LIFETIME_MS, REJECTION_LIFETIME_MS, SigninState } from '../src/state';
 import { basic, CALLBACK, cookieValue, MockTokenEndpoint, s256, Server, testEnv } from './helpers';
 
@@ -381,6 +382,56 @@ describe('refresh', () => {
 		now += REJECTION_LIFETIME_MS;
 		expect((await server.post('/refresh', { provider: 'googledrive', refresh_token: 'bad-token' })).status).toBe(400);
 		expect(tokens.forms, 'asked again a day later').toHaveLength(1);
+	});
+
+	it('answers a refused token again without the store', async () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => {});
+		server = new Server(testEnv({ RATE_LIMIT_REFRESH_IP: '60', RATE_LIMIT_REFRESH_TOKEN: '10' }));
+		const acquire = vi.spyOn(server.state, 'acquire');
+		expect((await server.post('/refresh', { provider: 'googledrive', refresh_token: 'bad-token' })).status).toBe(400);
+		expect(acquire).toHaveBeenCalledTimes(1);
+		for (let i = 0; i < 20; i++) {
+			expect((await server.post('/refresh', { provider: 'googledrive', refresh_token: 'bad-token' })).status, 'not rate limited').toBe(400);
+		}
+		expect(acquire, 'the Durable Object is not asked').toHaveBeenCalledTimes(1);
+	});
+
+	it('refreshes when the store does not answer', async () => {
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+		server = new Server(testEnv({ RATE_LIMIT_REFRESH_IP: '60' }));
+		vi.spyOn(server.state, 'acquire').mockImplementation(() => {
+			throw new Error('Exceeded allowed rows read in Durable Objects free tier.');
+		});
+		vi.spyOn(server.state, 'firstToday').mockImplementation(() => {
+			throw new Error('Exceeded allowed rows read in Durable Objects free tier.');
+		});
+		const response = await server.post('/refresh', { provider: 'googledrive', refresh_token: 'RT' });
+		expect(response.status).toBe(200);
+		expect(await response.json()).toMatchObject({ access_token: 'AT' });
+		expect(error.mock.calls.join('\n')).toContain('Rate limits not checked');
+	});
+
+	it('does not reach the store for requests without rate limits', async () => {
+		const acquire = vi.spyOn(server.state, 'acquire');
+		await server.get('/');
+		await server.get('/pin/UNKNOWN');
+		expect(acquire).not.toHaveBeenCalled();
+	});
+
+	it('keeps refused tokens in the Cache API for a day', async () => {
+		const entries = new Map<string, Response>();
+		const cache = {
+			put: async (url: string, response: Response) => void entries.set(url, response),
+			match: async (url: string) => entries.get(url)?.clone(),
+		} as unknown as Cache;
+		const rejections = cacheRejections(cache, 'https://signin.example.com/');
+		expect(await rejections.rejection('googledrive:abc')).toBeNull();
+		await rejections.reject('googledrive:abc', { status: 400, error: 'invalid_grant', app: 'current' });
+		expect(await rejections.rejection('googledrive:abc')).toEqual({ status: 400, error: 'invalid_grant', app: 'current' });
+		expect(await rejections.rejection('onedrive:abc')).toBeNull();
+		const [url, response] = [...entries][0] ?? [];
+		expect(url).toBe('https://signin.example.com/.rejections/googledrive%3Aabc');
+		expect(response?.headers.get('Cache-Control')).toBe(`max-age=${REJECTION_LIFETIME_MS / 1000}`);
 	});
 
 	it('asks again after errors about its own credentials', async () => {

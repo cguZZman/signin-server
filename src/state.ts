@@ -75,7 +75,8 @@ export class SigninState {
 	private readonly counters = new Map<string, { count: number; expires: number }>();
 	private nextSweep = 0;
 	// Refresh tokens (provider and hash) the provider refused for good: Kodi keeps asking with them until the user
-	// signs in again, and the provider would only refuse again.
+	// signs in again, and the provider would only refuse again. Only in tests: production keeps them in the Cache API
+	// (rejections.ts), so they don't take requests to the Durable Object.
 	private readonly rejections = new Map<string, Rejection & { expires: number }>();
 	// Accounts (hashes of refresh tokens) that refreshed today, UTC: only to count each account once a day.
 	// Memory only, emptied when the day changes.

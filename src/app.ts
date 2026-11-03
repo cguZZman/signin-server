@@ -1,4 +1,4 @@
-import type { Env, Store } from './env';
+import type { Env, Rejections, Store } from './env';
 import { type Messages, messages, negotiate } from './i18n';
 import { authorizeUrl, exchangeCode, isProvider, ownClientSupported, refresh, TokenError, validOwnClient } from './oauth';
 import { accessUser } from './access';
@@ -49,12 +49,12 @@ const SECURITY_HEADERS: Record<string, string> = {
 	'Cross-Origin-Embedder-Policy': 'require-corp',
 };
 
-export async function handle(request: Request, env: Env, store: Store): Promise<Response> {
+export async function handle(request: Request, env: Env, store: Store, rejections: Rejections): Promise<Response> {
 	const lang = negotiate(request.headers.get('Accept-Language'), new URL(request.url).searchParams.get('lang'));
 	const t = { ...messages(lang), supportUrl: env.FUNDING_URL || undefined };
 	let response: Response;
 	try {
-		response = await route(request, env, store, t);
+		response = await route(request, env, store, rejections, t);
 	} catch (e) {
 		// Only the error's message: requests may contain tokens.
 		console.error(`Request failed: ${request.method} ${new URL(request.url).pathname.replace(/^\/(pin|signin)\/.*/, '/$1/*')} ${e instanceof Error ? e.message : e}`);
@@ -76,7 +76,7 @@ export async function handle(request: Request, env: Env, store: Store): Promise<
 	return secured;
 }
 
-async function route(request: Request, env: Env, store: Store, t: Messages): Promise<Response> {
+async function route(request: Request, env: Env, store: Store, rejections: Rejections, t: Messages): Promise<Response> {
 	const url = new URL(request.url);
 	const site = new URL(env.SITE_URL);
 	const read = request.method === 'GET' || request.method === 'HEAD';
@@ -98,7 +98,16 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 	const agent = clientInfo(request.headers.get('User-Agent'), request.headers.get('addon'));
 	const track: Track = (event) => record(env, { country, client: agent, ...event });
 	const tokenHash = await refreshTokenHash(request);
-	const limited = await store.acquire(limits(env, request, path, client, tokenHash));
+	// Most refreshes are of tokens the provider already refused. They are answered first, without the rate limits:
+	// those take a request to the store, and the Durable Object's free requests are limited per day.
+	const refreshProvider = tokenHash ? (await params(request)).get('provider') : null;
+	const rejectionKey = tokenHash && isProvider(refreshProvider) ? `${refreshProvider}:${tokenHash}` : null;
+	const rejected = rejectionKey ? await remembered(rejections, rejectionKey) : null;
+	if (rejected) {
+		track({ event: 'refresh', provider: refreshProvider ?? '', app: rejected.app, outcome: 'failed', error: `${rejected.error} (repeated)` });
+		return json({ status: rejected.status, error: rejected.error }, rejected.status);
+	}
+	const limited = await acquire(store, limits(env, request, path, client, tokenHash));
 	if (limited) {
 		console.warn(`Rate limit exceeded: ${limited}`);
 		track({ event: 'rate_limited', outcome: 'rejected', error: limited });
@@ -166,12 +175,6 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 		if (!isProvider(provider) || !refreshToken) {
 			return json({ status: 400, error: 'Provider and refresh token required' }, 400);
 		}
-		const rejectionKey = tokenHash ? `${provider}:${tokenHash}` : null;
-		const rejected = rejectionKey ? await remembered(store, rejectionKey) : null;
-		if (rejected) {
-			track({ event: 'refresh', provider, app: rejected.app, outcome: 'failed', error: `${rejected.error} (repeated)` });
-			return json({ status: rejected.status, error: rejected.error }, rejected.status);
-		}
 		try {
 			const refreshed = await refresh(env, provider, refreshToken);
 			track({ event: 'refresh', provider, app: refreshed.app, outcome: 'ok' });
@@ -188,7 +191,7 @@ async function route(request: Request, env: Env, store: Store, t: Messages): Pro
 			if (e instanceof TokenError && e.status >= 400 && e.status < 500) {
 				const error = e.error ?? 'Token request failed';
 				if (rejectionKey && FINAL_REFRESH_ERRORS.has(error)) {
-					await remember(store, rejectionKey, { status: e.status, error, app: e.app });
+					await remember(rejections, rejectionKey, { status: e.status, error, app: e.app });
 				}
 				return json({ status: e.status, error }, e.status);
 			}
@@ -318,20 +321,37 @@ async function callback(env: Env, store: Store, t: Messages, track: Track, reque
 }
 
 /** The provider's earlier refusal of a refresh token. Remembering is only a saving: failures are logged and ignored. */
-async function remembered(store: Store, key: string): Promise<Rejection | null> {
+async function remembered(rejections: Rejections, key: string): Promise<Rejection | null> {
 	try {
-		return await store.rejection(key);
+		return await rejections.rejection(key);
 	} catch (e) {
 		console.error(`Refresh rejection not read: ${e instanceof Error ? e.message : e}`);
 		return null;
 	}
 }
 
-async function remember(store: Store, key: string, rejection: Rejection): Promise<void> {
+async function remember(rejections: Rejections, key: string, rejection: Rejection): Promise<void> {
 	try {
-		await store.reject(key, rejection);
+		await rejections.reject(key, rejection);
 	} catch (e) {
 		console.error(`Refresh rejection not remembered: ${e instanceof Error ? e.message : e}`);
+	}
+}
+
+/**
+ * The name of the first rate limit exceeded, or null. Requests without limits don't reach the store. When the store
+ * doesn't answer (e.g. over the Durable Object's daily free requests), the limits are not checked: refreshes don't
+ * need the store and keep working.
+ */
+async function acquire(store: Store, limits: Limit[]): Promise<string | null> {
+	if (!limits.some((limit) => limit.limit > 0)) {
+		return null;
+	}
+	try {
+		return await store.acquire(limits);
+	} catch (e) {
+		console.error(`Rate limits not checked: ${e instanceof Error ? e.message : e}`);
+		return null;
 	}
 }
 

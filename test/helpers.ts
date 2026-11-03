@@ -76,7 +76,7 @@ export class Server {
 	request(path: string, init: RequestInit & { ip?: string; base?: string } = {}): Promise<Response> {
 		const headers = new Headers(init.headers);
 		headers.set('CF-Connecting-IP', init.ip ?? '203.0.113.10');
-		return handle(new Request(new URL(path, init.base ?? SITE), { ...init, headers, redirect: 'manual' }), this.env, this.state);
+		return handle(new Request(new URL(path, init.base ?? SITE), { ...init, headers, redirect: 'manual' }), this.env, this.state, this.state);
 	}
 
 	get(path: string, init: RequestInit & { ip?: string; base?: string } = {}): Promise<Response> {
