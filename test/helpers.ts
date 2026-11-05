@@ -1,5 +1,7 @@
+import { DatabaseSync } from 'node:sqlite';
 import { vi } from 'vitest';
 import { handle } from '../src/app';
+import { type Sql, UsageArchive } from '../src/archive';
 import type { Env } from '../src/env';
 import { SigninState } from '../src/state';
 
@@ -66,17 +68,30 @@ export class MockTokenEndpoint {
 	}
 }
 
-/** The service with its own in-memory state, as one Durable Object would hold it. */
+/** An in-memory SQLite database with the Durable Object's SqlStorage interface. */
+export function memorySql(): Sql {
+	const db = new DatabaseSync(':memory:');
+	// Runs at once, as SqlStorage.exec does, not when the rows are read.
+	return {
+		exec: (query, ...bindings) => {
+			const rows = db.prepare(query).all(...bindings) as ReturnType<ReturnType<Sql['exec']>['toArray']>;
+			return { toArray: () => rows };
+		},
+	};
+}
+
+/** The service with its own in-memory state and storage, as one Durable Object would hold them. */
 export class Server {
 	constructor(
 		readonly env: Env = testEnv(),
 		readonly state: SigninState = new SigninState(),
+		readonly archive: UsageArchive = new UsageArchive(memorySql()),
 	) {}
 
 	request(path: string, init: RequestInit & { ip?: string; base?: string } = {}): Promise<Response> {
 		const headers = new Headers(init.headers);
 		headers.set('CF-Connecting-IP', init.ip ?? '203.0.113.10');
-		return handle(new Request(new URL(path, init.base ?? SITE), { ...init, headers, redirect: 'manual' }), this.env, this.state, this.state);
+		return handle(new Request(new URL(path, init.base ?? SITE), { ...init, headers, redirect: 'manual' }), this.env, this.state, this.state, this.archive);
 	}
 
 	get(path: string, init: RequestInit & { ip?: string; base?: string } = {}): Promise<Response> {

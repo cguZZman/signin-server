@@ -135,6 +135,8 @@ The same report is a private page at `/usage` (charts and tables, last 7, 30 or 
 
 The Worker also checks the Access login token itself, so the page stays closed if the Access application is removed. Until all four are set, `/usage` answers 404.
 
+With `ANALYTICS_ACCOUNT_ID` and `USAGE_API_TOKEN` set, a Cron Trigger (`triggers` in `wrangler.jsonc`, every hour) also copies each finished day's counts into the Durable Object's SQLite storage, so `/usage` can show a history by month after Analytics Engine deletes the days. Sign-ins with the user's own Google app are counted there as they happen, by a keyed hash of the app's client ID (the key is made on first use and stays in that storage), as the number of different apps: one per user. See `src/archive.ts`.
+
 #### Google's Drive API counts on /usage (optional)
 
 `/usage` can also show how many Drive API requests Kodi devices make with the tokens each Google project's app issued, read from Google Cloud Monitoring by a service account that can only read monitoring data:

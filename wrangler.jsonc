@@ -16,8 +16,11 @@
 	"durable_objects": {
 		"bindings": [{ "name": "STORE", "class_name": "SigninStore" }]
 	},
-	// SQLite-backed class (required on the free plan). The store keeps everything in memory and never writes to it.
+	// SQLite-backed class (required on the free plan). Sign-in codes and counters are kept in memory; the storage only
+	// holds the usage history (src/archive.ts).
 	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["SigninStore"] }],
+	// Hourly: copies finished days of usage counts from Analytics Engine, which keeps three months, into that history.
+	"triggers": { "crons": ["15 * * * *"] },
 	// Anonymous usage counts (src/usage.ts). Secrets USAGE_HASH_KEY and USAGE_REPORT_TOKEN: see SETUP.md.
 	"analytics_engine_datasets": [{ "binding": "USAGE", "dataset": "signin_usage" }],
 	"observability": {

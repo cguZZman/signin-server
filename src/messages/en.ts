@@ -87,7 +87,7 @@ export const en: Messages = {
 		title: 'Privacy policy',
 		body: (source) => `
 	<h1>Privacy policy</h1>
-	<p class="meta">Last updated: November 2, 2026</p>
+	<p class="meta">Last updated: November 5, 2026</p>
 
 	<p>
 		This policy covers the <strong>Google Drive</strong>, <strong>OneDrive</strong> and <strong>Dropbox</strong> add-ons for Kodi and this sign-in service.
@@ -165,7 +165,8 @@ export const en: Messages = {
 		If you choose to sign in to Google Drive with your own Google Cloud app, you enter its client ID and client secret on the code page.
 		The server uses them for that sign-in only, and hands them to your Kodi device with the tokens. Like the tokens, they are held
 		<strong>in memory</strong> for at most 3 minutes and are never written to disk or to logs. Your Kodi device then renews your sign-in
-		with Google directly, without this server.
+		with Google directly, without this server. To count how many people sign in with their own app, the server keeps a one-way hash of
+		the client ID, made with a secret key, and the days of the first and last sign-in with it; the client ID itself is never kept.
 	</p>
 	<h3>Abuse protection</h3>
 	<p>
@@ -188,7 +189,8 @@ export const en: Messages = {
 		count how many accounts are active each day, the server remembers in memory, for that day only, a one-way hash of each
 		refresh token it has already seen; only the number of accounts is recorded. These records never contain IP addresses,
 		tokens, account names, file information or anything else that identifies you or your account, and are deleted after three
-		months.
+		months. Daily totals of these counts are kept in the service's own storage without a time limit, to compare usage over the
+		years.
 	</p>
 
 	<h2>What is stored on your Kodi device</h2>

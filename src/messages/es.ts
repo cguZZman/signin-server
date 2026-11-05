@@ -88,7 +88,7 @@ export const es: Messages = {
 		title: 'Política de privacidad',
 		body: (source) => `
 	<h1>Política de privacidad</h1>
-	<p class="meta">Última actualización: 2 de noviembre de 2026</p>
+	<p class="meta">Última actualización: 5 de noviembre de 2026</p>
 	<p class="meta">Esta es una traducción. Si hay alguna diferencia, prevalece la <a href="/privacypolicy?lang=en">versión original en inglés</a>.</p>
 
 	<p>
@@ -167,7 +167,9 @@ export const es: Messages = {
 		Si eliges iniciar sesión en Google Drive con tu propia app de Google Cloud, ingresas su ID de cliente y su secreto en la página del código.
 		El servidor los usa solo para ese inicio de sesión y se los entrega a tu dispositivo Kodi junto con los tokens. Igual que los tokens, se
 		guardan <strong>en memoria</strong> durante 3 minutos como máximo y nunca se escriben en disco ni en registros. Después, tu dispositivo Kodi
-		renueva tu sesión directamente con Google, sin este servidor.
+		renueva tu sesión directamente con Google, sin este servidor. Para contar cuántas personas inician sesión con su propia app, el servidor
+		guarda un hash de un solo sentido del ID de cliente, hecho con una clave secreta, y los días del primer y del último inicio de sesión
+		con ella; el ID de cliente en sí nunca se guarda.
 	</p>
 	<h3>Protección contra abusos</h3>
 	<p>
@@ -191,7 +193,8 @@ export const es: Messages = {
 		dispositivo Kodi. Para contar cuántas cuentas se usan cada día, el servidor recuerda en memoria, solo durante ese día, un hash
 		de un solo sentido de cada token de renovación que ya vio; solo se registra el número de cuentas. Estos registros nunca
 		contienen direcciones IP, tokens, nombres de cuenta, información de archivos ni nada que te identifique a ti o a tu cuenta, y se
-		eliminan después de tres meses.
+		eliminan después de tres meses. Los totales diarios de estos conteos se guardan sin límite de tiempo en el almacenamiento del
+		propio servicio, para comparar el uso a lo largo de los años.
 	</p>
 
 	<h2>Qué se guarda en tu dispositivo Kodi</h2>

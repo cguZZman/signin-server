@@ -1,7 +1,8 @@
 // The private /usage page: the usage report (src/report.ts) as stat tiles, daily charts (inline SVG, hover layer in
 // public/js/usage.js) and tables. Styles in public/css/usage.css; series colors are classes s1..s5, in a fixed order.
+import type { MonthTotals, OwnAppTotals } from './archive';
 import { escape } from './pages';
-import { type DailyChart, format, PERIODS, type Report, type Table } from './report';
+import { type DailyChart, format, PERIODS, type Report, type Table, type Tile } from './report';
 
 const W = 720;
 const H = 240;
@@ -10,12 +11,16 @@ const PLOT_W = W - M.left - M.right;
 const PLOT_H = H - M.top - M.bottom;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export function usagePage(report: Report, period: number, user: string): string {
+/** What the archive (archive.ts) keeps for good, or why it couldn't be read. */
+export type History = { months: MonthTotals[]; ownApps: OwnAppTotals } | { error: string };
+
+export function usagePage(report: Report, period: number, user: string, history?: History): string {
+	const tiles = history && 'ownApps' in history ? [...report.tiles, ownAppTile(history.ownApps, period)] : report.tiles;
 	return page(
 		period,
 		user,
 		`<section class="tiles" aria-label="Summary">
-			${report.tiles
+			${tiles
 				.map(
 					(t) => `<div class="tile">
 				<div class="tile-label">${escape(t.label)}</div>
@@ -26,6 +31,7 @@ export function usagePage(report: Report, period: number, user: string): string 
 				.join('')}
 		</section>
 		${report.charts.map((c, i) => chart(c, report.days, `chart-${i}`)).join('')}
+		${history ? historyPanel(history) : ''}
 		${dayFilter(report, period)}
 		<section class="tables">
 			${report.tables.map(table).join('')}
@@ -35,6 +41,30 @@ export function usagePage(report: Report, period: number, user: string): string 
 
 export function usageErrorPage(period: number, user: string, message: string): string {
 	return page(period, user, `<section class="panel"><h2>The usage data could not be loaded</h2><p class="muted">${escape(message)}</p></section>`);
+}
+
+function ownAppTile(ownApps: OwnAppTotals, period: number): Tile {
+	return {
+		label: 'Own Google app users',
+		value: format(ownApps.users),
+		detail: ownApps.since
+			? `different apps since ${weekdayLabel(ownApps.since)}, ${format(ownApps.newUsers)} new in the last ${period} days`
+			: 'none yet; counted from the first one, for good',
+	};
+}
+
+/** Monthly totals of the archived days: kept after Analytics Engine deletes them. */
+function historyPanel(history: History): string {
+	const months = 'months' in history ? history.months : [];
+	return table({
+		title: 'History by month',
+		description:
+			'error' in history
+				? `The archive could not be read: ${history.error}`
+				: "Kept for good: the finished days are copied from Analytics Engine, which keeps three months. Active accounts: the month's busiest day.",
+		columns: ['Month', 'Active accounts', 'Codes created', 'Sign-ins completed', 'Own Google app sign-ins', 'Refreshes', 'Refresh failures'],
+		rows: months.map((m) => [monthLabel(m.month), m.activePeak, m.codes, m.signins, m.ownAppSignins, m.refreshOk + m.refreshFailed, m.refreshFailed]),
+	});
 }
 
 function page(period: number, user: string, content: string): string {
@@ -201,6 +231,12 @@ export function scale(maximum: number): { max: number; ticks: number[] } {
 
 function roundedTop(x: number, y: number, w: number, h: number, r: number): string {
 	return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+}
+
+/** 2026-11 as "Nov 2026". */
+function monthLabel(month: string): string {
+	const [year, number] = month.split('-');
+	return `${MONTHS[Number(number) - 1] ?? ''} ${year}`;
 }
 
 function dayLabel(day: string): string {

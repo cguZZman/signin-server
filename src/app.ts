@@ -2,10 +2,11 @@ import type { Env, Rejections, Store } from './env';
 import { type Messages, messages, negotiate } from './i18n';
 import { authorizeUrl, exchangeCode, isProvider, ownClientSupported, refresh, TokenError, validOwnClient } from './oauth';
 import { accessUser } from './access';
-import { usageErrorPage, usagePage } from './dashboard';
+import type { Archive } from './archive';
+import { type History, usageErrorPage, usagePage } from './dashboard';
 import { driveMetrics } from './google';
 import { closedPage, continuePage, failurePage, indexPage, notFoundPage, privacyPage, successPage, tooManyPage } from './pages';
-import { loadReport, PERIODS, sqlApi } from './report';
+import { dayList, loadReport, PERIODS, sqlApi } from './report';
 import { ipv6Groups, type Limit, type OwnClient, type Rejection } from './state';
 import { clientInfo, ingest, record, type UsageEvent } from './usage';
 
@@ -49,12 +50,12 @@ const SECURITY_HEADERS: Record<string, string> = {
 	'Cross-Origin-Embedder-Policy': 'require-corp',
 };
 
-export async function handle(request: Request, env: Env, store: Store, rejections: Rejections): Promise<Response> {
+export async function handle(request: Request, env: Env, store: Store, rejections: Rejections, archive: Archive): Promise<Response> {
 	const lang = negotiate(request.headers.get('Accept-Language'), new URL(request.url).searchParams.get('lang'));
 	const t = { ...messages(lang), supportUrl: env.FUNDING_URL || undefined };
 	let response: Response;
 	try {
-		response = await route(request, env, store, rejections, t);
+		response = await route(request, env, store, rejections, archive, t);
 	} catch (e) {
 		// Only the error's message: requests may contain tokens.
 		console.error(`Request failed: ${request.method} ${new URL(request.url).pathname.replace(/^\/(pin|signin)\/.*/, '/$1/*')} ${e instanceof Error ? e.message : e}`);
@@ -76,7 +77,7 @@ export async function handle(request: Request, env: Env, store: Store, rejection
 	return secured;
 }
 
-async function route(request: Request, env: Env, store: Store, rejections: Rejections, t: Messages): Promise<Response> {
+async function route(request: Request, env: Env, store: Store, rejections: Rejections, archive: Archive, t: Messages): Promise<Response> {
 	const url = new URL(request.url);
 	const site = new URL(env.SITE_URL);
 	const read = request.method === 'GET' || request.method === 'HEAD';
@@ -92,7 +93,7 @@ async function route(request: Request, env: Env, store: Store, rejections: Rejec
 		return ingest(env, request);
 	}
 	if (path === '/usage' && read) {
-		return usage(env, request, t);
+		return usage(env, request, t, archive);
 	}
 	const country = (request as { cf?: { country?: string } }).cf?.country ?? '';
 	const agent = clientInfo(request.headers.get('User-Agent'), request.headers.get('addon'));
@@ -131,7 +132,7 @@ async function route(request: Request, env: Env, store: Store, rejections: Rejec
 		return signin(env, store, t, track, client, path.slice('/signin/'.length));
 	}
 	if (path === '/callback') {
-		return callback(env, store, t, track, request, await params(request));
+		return callback(env, store, archive, t, track, request, await params(request));
 	}
 	if (path === '/auth-success' && read) {
 		return html(successPage(t, funding(env)));
@@ -209,7 +210,7 @@ async function route(request: Request, env: Env, store: Store, rejections: Rejec
 }
 
 /** The private usage page, for the Cloudflare Access application's users only. */
-async function usage(env: Env, request: Request, t: Messages): Promise<Response> {
+async function usage(env: Env, request: Request, t: Messages, archive: Archive): Promise<Response> {
 	if (!env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD || !env.ANALYTICS_ACCOUNT_ID || !env.USAGE_API_TOKEN) {
 		return new Response(notFoundPage(t), { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 	}
@@ -224,7 +225,12 @@ async function usage(env: Env, request: Request, t: Messages): Promise<Response>
 	try {
 		// loadReport only uses a day that is one of the period's days.
 		const drive = env.GOOGLE_METRICS_KEY && env.GOOGLE_METRICS_PROJECTS ? driveMetrics(env.GOOGLE_METRICS_KEY, env.GOOGLE_METRICS_PROJECTS) : undefined;
-		body = usagePage(await loadReport(sqlApi(env.ANALYTICS_ACCOUNT_ID, env.USAGE_API_TOKEN), period, new Date(), search.get('day'), drive), period, user);
+		const now = new Date();
+		const [report, kept] = await Promise.all([
+			loadReport(sqlApi(env.ANALYTICS_ACCOUNT_ID, env.USAGE_API_TOKEN), period, now, search.get('day'), drive),
+			history(archive, dayList(period, now)[0] ?? ''),
+		]);
+		body = usagePage(report, period, user, kept);
 	} catch (e) {
 		console.error(`Usage page: ${e instanceof Error ? e.message : e}`);
 		body = usageErrorPage(period, user, 'Analytics Engine did not answer. Try again in a minute.');
@@ -273,7 +279,7 @@ async function signin(
 	return response;
 }
 
-async function callback(env: Env, store: Store, t: Messages, track: Track, request: Request, form: URLSearchParams): Promise<Response> {
+async function callback(env: Env, store: Store, archive: Archive, t: Messages, track: Track, request: Request, form: URLSearchParams): Promise<Response> {
 	const error = form.get('error');
 	const state = form.get('state');
 	const code = form.get('code');
@@ -306,6 +312,9 @@ async function callback(env: Env, store: Store, t: Messages, track: Track, reque
 		const stored = await store.storeTokens(state, tokens);
 		const app = finished.ownClient ? 'own' : undefined;
 		track({ event: 'signin', provider: finished.provider, app, outcome: stored ? 'completed' : 'expired' });
+		if (stored && finished.ownClient) {
+			await countOwnApp(archive, finished.provider, finished.ownClient.id);
+		}
 		page = stored ? redirect('/auth-success', 302) : html(failurePage(t, { message: 'failure.code.1' }));
 	} catch (e) {
 		if (!(e instanceof TokenError)) {
@@ -318,6 +327,26 @@ async function callback(env: Env, store: Store, t: Messages, track: Track, reque
 	}
 	page.headers.append('Set-Cookie', clearCookie);
 	return page;
+}
+
+/** The archived history for /usage, or why it couldn't be read: the rest of the page doesn't depend on it. */
+async function history(archive: Archive, since: string): Promise<History> {
+	try {
+		const [months, ownApps] = await Promise.all([archive.history(), archive.ownApps(since)]);
+		return { months, ownApps };
+	} catch (e) {
+		console.error(`Usage history: ${e instanceof Error ? e.message : e}`);
+		return { error: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+/** Counts the user of an own app for good (archive.ts). Never fails the sign-in. */
+async function countOwnApp(archive: Archive, provider: string, clientId: string): Promise<void> {
+	try {
+		await archive.countOwnApp(provider, clientId, new Date().toISOString().slice(0, 10));
+	} catch (e) {
+		console.error(`Own app not counted: ${e instanceof Error ? e.message : e}`);
+	}
 }
 
 /** The provider's earlier refusal of a refresh token. Remembering is only a saving: failures are logged and ignored. */

@@ -126,7 +126,30 @@ describe('/usage', () => {
 		expect(page, 'country names are escaped').toContain('&lt;script&gt;');
 		expect(page).not.toContain('<script>"');
 		expect(page.match(/class="hit"/g)?.length, 'one hover target per day and chart').toBe(30 * 4);
+		expect(page, 'own app users tile').toContain('Own Google app users');
+		expect(page, 'history').toContain('History by month');
 		expect(queries.every((q) => q.includes("timestamp >= toDateTime('") && q.endsWith('FORMAT JSON'))).toBe(true);
+	});
+
+	it('shows the archived months and own app users', async () => {
+		vi.useFakeTimers({ now: NOW, toFake: ['Date'] });
+		await server.archive.countOwnApp('googledrive', 'client-1', '2026-10-13');
+		server.archive.saveDay('2026-09-30', { events: [{ event: 'active_account', provider: 'googledrive', app: 'current', outcome: 'ok', error: '', source: 'worker', n: 1234 }], versions: [], countries: [] }, 0);
+		const page = await (await server.get('/usage', await asUser())).text();
+		vi.useRealTimers();
+		const tile = /Own Google app users<\/div>\s*<div class="tile-value">([^<]*)<\/div>\s*<div class="tile-detail">([^<]*)/.exec(page);
+		expect([tile?.[1], tile?.[2]]).toEqual(['1', 'different apps since Tue, Oct 13, 1 new in the last 7 days']);
+		expect(page).toContain('<td>Sep 2026</td><td class="num">1,234</td>');
+	});
+
+	it('shows the report when the archive fails', async () => {
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.spyOn(server.archive, 'history').mockImplementation(() => {
+			throw new Error('storage unavailable');
+		});
+		const page = await (await server.get('/usage', await asUser())).text();
+		expect(page).toContain('Active accounts per day');
+		expect(page).toContain('The archive could not be read: storage unavailable');
 	});
 
 	it('falls back to 7 days for other periods', async () => {

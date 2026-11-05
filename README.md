@@ -20,7 +20,7 @@ It replaces [drive-login](https://github.com/cguZZman/drive-login), the earlier 
 
 File contents never go through this service: Kodi talks to Google, Microsoft and Dropbox directly. The service keeps no database and doesn't write or log tokens.
 
-Codes and rate-limit counters live in the memory of a single [Durable Object](https://developers.cloudflare.com/durable-objects/), so every request sees the same codes wherever it reaches Cloudflare. Nothing is written to its storage. Refresh tokens the provider refused are remembered for a day in each data center's cache instead, and requests without rate limits don't reach the object: its free requests are limited per day.
+Codes and rate-limit counters live in the memory of a single [Durable Object](https://developers.cloudflare.com/durable-objects/), so every request sees the same codes wherever it reaches Cloudflare. Its storage only keeps the usage history: daily totals copied every hour from Analytics Engine, which keeps three months, and keyed hashes of the client IDs of own Google apps, to count their users (`src/archive.ts`). Refresh tokens the provider refused are remembered for a day in each data center's cache instead, and requests without rate limits don't reach the object: its free requests are limited per day.
 
 ## Self-hosting
 

@@ -258,6 +258,7 @@ describe('sign-in with your own Google app', () => {
 		const collected = await server.get(`/pin/${pin}`, { headers: basic(password) });
 		expect(await collected.json()).toMatchObject({ access_token: 'AT', refresh_token: 'RT', client_id: OWN_ID, client_secret: OWN_SECRET });
 		expect(logs.flatMap((spy) => spy.mock.calls).join('\n')).not.toContain(OWN_SECRET);
+		expect(server.archive.ownApps('2000-01-01'), 'its user is counted for good').toMatchObject({ users: 1, signins: 1 });
 	});
 
 	it('needs an add-on version that refreshes its tokens, and Google Drive', async () => {

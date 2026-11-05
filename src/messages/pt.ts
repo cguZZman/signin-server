@@ -88,7 +88,7 @@ export const pt: Messages = {
 		title: 'Política de privacidade',
 		body: (source) => `
 	<h1>Política de privacidade</h1>
-	<p class="meta">Última atualização: 2 de novembro de 2026</p>
+	<p class="meta">Última atualização: 5 de novembro de 2026</p>
 	<p class="meta">Esta é uma tradução. Se houver alguma diferença, vale a <a href="/privacypolicy?lang=en">versão original em inglês</a>.</p>
 
 	<p>
@@ -167,7 +167,8 @@ export const pt: Messages = {
 		Se você escolher entrar no Google Drive com seu próprio app do Google Cloud, você informa o ID do cliente e a chave secreta na página do código.
 		O servidor os usa só nesse login e os entrega ao seu Kodi junto com os tokens. Assim como os tokens, eles ficam <strong>na memória</strong>
 		por no máximo 3 minutos e nunca são gravados em disco nem em registros. Depois, o seu Kodi renova o login diretamente com o Google,
-		sem este servidor.
+		sem este servidor. Para contar quantas pessoas entram com o próprio app, o servidor guarda um hash irreversível do ID do cliente, feito
+		com uma chave secreta, e os dias do primeiro e do último login com ele; o ID do cliente em si nunca é guardado.
 	</p>
 	<h3>Proteção contra abusos</h3>
 	<p>
@@ -191,7 +192,8 @@ export const pt: Messages = {
 		dispositivo Kodi. Para contar quantas contas são usadas por dia, o servidor guarda na memória, somente durante aquele dia, um
 		hash irreversível de cada token de renovação que já viu; somente o número de contas é registrado. Esses registros nunca contêm
 		endereços IP, tokens, nomes de conta, informações de arquivos nem nada que identifique você ou sua conta, e são apagados após
-		três meses.
+		três meses. Os totais diários dessas contagens ficam guardados sem limite de tempo no armazenamento do próprio serviço, para
+		comparar o uso ao longo dos anos.
 	</p>
 
 	<h2>O que fica guardado no seu Kodi</h2>
